@@ -1,0 +1,60 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Courses{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
+        <h2>Courses</h2>
+        {% if user.is_admin or user.is_teacher %}
+        <a href="{% url 'create_course' %}" class="btn btn-success">Create Course</a>
+        {% endif %}
+    </div>
+    
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Course List</h5>
+            </div>
+            <div class="card-body">
+                {% if courses %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Teacher</th>
+                                <th>Students</th>
+                                <th>Lectures</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for course in courses %}
+                            <tr>
+                                <td>{{ course.code }}</td>
+                                <td>{{ course.name }}</td>
+                                <td>{{ course.teacher.username }}</td>
+                                <td>{{ course.enrollments.count }}</td>
+                                <td>{{ course.lectures.count }}</td>
+                                <td>{{ course.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'course_detail' course.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No courses available. {% if user.is_admin or user.is_teacher %}<a href="{% url 'create_course' %}">Create your first course</a>{% endif %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

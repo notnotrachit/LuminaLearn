@@ -1,0 +1,54 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Teachers{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
+        <h2>Teachers</h2>
+        {% if user.is_admin %}
+        <a href="{% url 'teacher_signup' %}" class="btn btn-success">Add Teacher</a>
+        {% endif %}
+    </div>
+    
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Teacher List</h5>
+            </div>
+            <div class="card-body">
+                {% if teachers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Courses</th>
+                                <th>Blockchain Wallet</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for teacher in teachers %}
+                            <tr>
+                                <td>{{ teacher.username }}</td>
+                                <td>{{ teacher.email }}</td>
+                                <td>{{ teacher.teaching_courses.count }}</td>
+                                <td>
+                                    <span class="text-truncate d-inline-block" style="max-width: 200px;">{{ teacher.stellar_public_key }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No teachers available. {% if user.is_admin %}<a href="{% url 'teacher_signup' %}">Add a teacher</a>{% endif %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

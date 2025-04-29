@@ -1,0 +1,44 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Blockchain Status{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Blockchain Connection Status</h2>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header {% if result.status == 'success' %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                    <h5 class="mb-0">Status: {{ result.status|title }}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Message:</strong> {{ result.message }}</p>
+                    {% if result.status == 'success' %}
+                    <p><strong>Contract ID:</strong> <code>{{ result.contract_id }}</code></p>
+                    {% if result.network_info %}
+                    <p><strong>Network Status:</strong> {{ result.network_info }}</p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Blockchain Details</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Network:</strong> Stellar Testnet</p>
+                    <p><strong>Explorer:</strong> <a href="https://stellar.expert/explorer/testnet/contract/{{ result.contract_id }}" target="_blank">View Contract</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

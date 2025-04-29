@@ -1,0 +1,51 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Students{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 mb-4">
+        <h2>Students</h2>
+    </div>
+    
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Student List</h5>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Enrollments</th>
+                                <th>Blockchain Wallet</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr>
+                                <td>{{ student.username }}</td>
+                                <td>{{ student.email }}</td>
+                                <td>{{ student.enrollments.count }}</td>
+                                <td>
+                                    <span class="text-truncate d-inline-block" style="max-width: 200px;">{{ student.stellar_public_key }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No students available.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,114 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
+        <h2>Student Dashboard</h2>
+        <a href="{% url 'scan_attendance' %}" class="btn btn-success">Scan Attendance</a>
+    </div>
+    
+    {% if enrollments %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Your Courses</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Teacher</th>
+                                <th>Roll Number</th>
+                                <th>Enrolled</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enrollment in enrollments %}
+                            <tr>
+                                <td>{{ enrollment.course.code }}</td>
+                                <td>{{ enrollment.course.name }}</td>
+                                <td>{{ enrollment.course.teacher.username }}</td>
+                                <td>{{ enrollment.roll_number }}</td>
+                                <td>{{ enrollment.enrollment_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'course_detail' enrollment.course.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <p class="mb-0">You are not enrolled in any courses yet. Your teacher will add you to courses.</p>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if recent_attendances %}
+    <div class="col-12 mt-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Recent Attendances</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Lecture</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attendance in recent_attendances %}
+                            <tr>
+                                <td>{{ attendance.lecture.course.code }}</td>
+                                <td>{{ attendance.lecture.title }}</td>
+                                <td>{{ attendance.lecture.date|date:"M d, Y" }}</td>
+                                <td>{{ attendance.timestamp|time:"H:i" }}</td>
+                                <td>
+                                    {% if attendance.blockchain_verified %}
+                                    <span class="badge bg-success">Verified</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Manual</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="col-12 mt-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Your Blockchain Wallet</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Public Key:</strong> <span class="text-monospace">{{ user.stellar_public_key }}</span></p>
+                <div class="alert alert-warning">
+                    <p class="mb-0">Your blockchain wallet is used to securely record your attendance on the Stellar blockchain.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

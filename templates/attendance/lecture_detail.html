@@ -1,0 +1,214 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}{{ lecture.title }} - {{ course.name }}{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'course_detail' course.id %}">{{ course.code }}</a></li>
+                <li class="breadcrumb-item active">{{ lecture.title }}</li>
+            </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>{{ lecture.title }}</h2>
+            {% if is_teacher %}
+            <div>
+                {% if active_session %}
+                <a href="{% url 'close_attendance_session' active_session.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to close this attendance session?')">Close Attendance Session</a>
+                {% else %}
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#startAttendanceModal">Start Attendance</button>
+                {% endif %}
+                <a href="{% url 'manual_attendance' lecture.id %}" class="btn btn-outline-primary">Manual Attendance</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Lecture Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Course:</strong> {{ course.code }} - {{ course.name }}</p>
+                        <p><strong>Teacher:</strong> {{ course.teacher.username }}</p>
+                        <p><strong>Date:</strong> {{ lecture.date|date:"F d, Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Time:</strong> {{ lecture.start_time|time:"H:i" }} - {{ lecture.end_time|time:"H:i" }}</p>
+                        <p><strong>Total Students:</strong> {{ course.enrollments.count }}</p>
+                        <p><strong>Attendance:</strong> {{ attendances.count }} / {{ course.enrollments.count }}</p>
+                    </div>
+                </div>
+                
+                {% if lecture.blockchain_lecture_id %}
+                <div class="alert alert-info mt-3">
+                    <p class="mb-0"><strong>Blockchain ID:</strong> {{ lecture.blockchain_lecture_id }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if is_teacher %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Attendance Records</h5>
+            </div>
+            <div class="card-body">
+                {% if attendances %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Roll Number</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attendance in attendances %}
+                            <tr>
+                                <td>{{ attendance.student.username }}</td>
+                                <td>
+                                    {% for enrollment in attendance.student.enrollments.all %}
+                                    {% if enrollment.course == course %}
+                                    {{ enrollment.roll_number }}
+                                    {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>{{ attendance.timestamp|time:"H:i:s" }}</td>
+                                <td>
+                                    {% if attendance.blockchain_verified %}
+                                    <span class="badge bg-success">Blockchain Verified</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Manual</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <p class="mb-0">No attendance records yet. Start an attendance session or mark attendance manually.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Your Attendance</h5>
+            </div>
+            <div class="card-body">
+                {% if student_attended %}
+                <div class="alert alert-success">
+                    <p class="mb-0"><i class="bi bi-check-circle-fill"></i> You have marked your attendance for this lecture.</p>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <p class="mb-0">You have not marked your attendance for this lecture.</p>
+                    {% if active_session %}
+                    <a href="{% url 'scan_attendance' %}" class="btn btn-primary mt-2">Scan QR to Mark Attendance</a>
+                    {% else %}
+                    <p class="mt-2 text-muted">No active attendance session. Wait for your teacher to start one.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        {% if is_teacher and active_session %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Attendance QR Code</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <img src="{{ qr_code }}" alt="Attendance QR Code" class="img-fluid" style="max-width: 250px;">
+                </div>
+                <p class="alert alert-info">
+                    Session ends at {{ active_session.end_time|time:"H:i:s" }}
+                </p>
+                <p>Show this QR code to your students so they can mark their attendance.</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Students Not Present</h5>
+            </div>
+            <div class="card-body">
+                {% if course.enrollments.all %}
+                <ul class="list-group">
+                    {% for enrollment in course.enrollments.all %}
+                        <!-- Check if student is present in attendances -->
+                        {% with student_present=False %}
+                        {% for attendance in lecture.attendances.all %}
+                            {% if attendance.student.id == enrollment.student.id %}
+                                {% with student_present=True %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if not student_present %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ enrollment.student.username }}
+                            <span class="badge bg-secondary">{{ enrollment.roll_number }}</span>
+                        </li>
+                        {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No students enrolled in this course.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_teacher %}
+<!-- Start Attendance Modal -->
+<div class="modal fade" id="startAttendanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Start Attendance Session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="session_form" value="true">
+                <div class="modal-body">
+                    <p>Start an attendance session for this lecture. Students will be able to scan a QR code to mark their attendance.</p>
+                    
+                    <div class="mb-3">
+                        <label for="id_duration_minutes" class="form-label">Duration (minutes)</label>
+                        <input type="number" name="duration_minutes" id="id_duration_minutes" class="form-control" value="15" min="1" max="120">
+                        <div class="form-text">How long should the attendance session be open?</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Start Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

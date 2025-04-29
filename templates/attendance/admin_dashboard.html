@@ -1,0 +1,105 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 mb-4">
+        <h2>Admin Dashboard</h2>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Teachers</h5>
+            </div>
+            <div class="card-body">
+                <h1 class="display-4 text-center">{{ teacher_count }}</h1>
+                <p class="card-text text-center">Total Teachers</p>
+            </div>
+            <div class="card-footer bg-white text-center">
+                <a href="{% url 'teacher_signup' %}" class="btn btn-primary">Add Teacher</a>
+                <a href="{% url 'teacher_list' %}" class="btn btn-outline-primary">View All</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Students</h5>
+            </div>
+            <div class="card-body">
+                <h1 class="display-4 text-center">{{ student_count }}</h1>
+                <p class="card-text text-center">Total Students</p>
+            </div>
+            <div class="card-footer bg-white text-center">
+                <a href="{% url 'student_list' %}" class="btn btn-success">View All</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Courses</h5>
+            </div>
+            <div class="card-body">
+                <h1 class="display-4 text-center">{{ courses|length }}</h1>
+                <p class="card-text text-center">Total Courses</p>
+            </div>
+            <div class="card-footer bg-white text-center">
+                <a href="{% url 'create_course' %}" class="btn btn-info">Add Course</a>
+                <a href="{% url 'course_list' %}" class="btn btn-outline-info">View All</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Recent Courses</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Teacher</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for course in courses|slice:":5" %}
+                            <tr>
+                                <td>{{ course.code }}</td>
+                                <td>{{ course.name }}</td>
+                                <td>{{ course.teacher.username }}</td>
+                                <td>{{ course.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'course_detail' course.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No courses available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if courses|length > 5 %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'course_list' %}" class="btn btn-outline-primary">View All Courses</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

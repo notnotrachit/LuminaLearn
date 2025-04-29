@@ -1,0 +1,183 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Scan Attendance QR Code{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Scan Attendance QR Code</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-center">Use your device's camera to scan the QR code displayed by your teacher.</p>
+                
+                <div class="text-center mb-4">
+                    <video id="preview" style="width: 100%; max-width: 500px; margin: 0 auto;"></video>
+                </div>
+                
+                <div class="text-center">
+                    <button id="startButton" class="btn btn-primary">Start Scanner</button>
+                    <button id="stopButton" class="btn btn-danger" style="display: none;">Stop Scanner</button>
+                </div>
+                
+                <div id="result" class="mt-4" style="display: none;">
+                    <div class="alert alert-info">
+                        <p id="resultMessage"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Use Instascan library -->
+<script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const preview = document.getElementById('preview');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resultDiv = document.getElementById('result');
+        const resultMessage = document.getElementById('resultMessage');
+        
+        let scanner = null;
+        let scanning = false;
+        
+        // Function to start the scanner
+        function startScanner() {
+            if (scanning) return;
+            
+            // Create new scanner instance
+            scanner = new Instascan.Scanner({ 
+                video: preview, 
+                scanPeriod: 5, // Scan every 5ms
+                mirror: false  // Don't mirror the image
+            });
+            
+            // Register scan event
+            scanner.addListener('scan', function(content) {
+                console.log("QR Code detected:", content);
+                
+                // Stop scanning
+                stopScanner();
+                
+                // Process the QR code data
+                processQrCode(content);
+            });
+            
+            // Start camera with back camera first if available
+            Instascan.Camera.getCameras().then(function(cameras) {
+                if (cameras.length > 0) {
+                    // Try to use the back camera (last camera in the list typically)
+                    let selectedCamera = cameras[0]; // Default to first camera
+                    
+                    // Look for back camera
+                    for (let i = 0; i < cameras.length; i++) {
+                        if (cameras[i].name && cameras[i].name.toLowerCase().includes('back')) {
+                            selectedCamera = cameras[i];
+                            break;
+                        }
+                    }
+                    
+                    // If more than one camera and first doesn't have 'back' in name, try last camera
+                    if (cameras.length > 1 && !selectedCamera.name.toLowerCase().includes('back')) {
+                        selectedCamera = cameras[cameras.length - 1];
+                    }
+                    
+                    console.log("Starting camera:", selectedCamera.name || "unknown");
+                    scanner.start(selectedCamera);
+                    
+                    // Update UI
+                    scanning = true;
+                    startButton.style.display = 'none';
+                    stopButton.style.display = 'inline-block';
+                    console.log("QR scanner started successfully");
+                } else {
+                    console.error("No cameras found.");
+                    alert("No cameras found on your device.");
+                }
+            }).catch(function(e) {
+                console.error("Camera error:", e);
+                alert("Error accessing camera: " + e);
+            });
+        }
+        
+        // Function to stop the scanner
+        function stopScanner() {
+            if (scanner) {
+                scanner.stop();
+            }
+            scanning = false;
+            startButton.style.display = 'inline-block';
+            stopButton.style.display = 'none';
+        }
+        
+        // Process the QR code data
+        function processQrCode(qrData) {
+            // Show processing message
+            resultDiv.style.display = 'block';
+            resultMessage.innerText = 'Processing your attendance...';
+            
+            // Send the QR data to server for processing
+            const csrfToken = '{{ csrf_token }}';
+            fetch('{% url "process_attendance" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: 'qr_data=' + encodeURIComponent(qrData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.className = 'mt-4';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5>Attendance Marked Successfully!</h5>
+                            <p>Course: ${data.course}</p>
+                            <p>Lecture: ${data.lecture}</p>
+                            <p>Your attendance has been recorded on the blockchain.</p>
+                            <a href="{% url 'dashboard' %}" class="btn btn-primary mt-2">Back to Dashboard</a>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.className = 'mt-4';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5>Error</h5>
+                            <p>${data.error}</p>
+                            <button class="btn btn-primary mt-2" onclick="location.reload()">Try Again</button>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                resultDiv.className = 'mt-4';
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Error</h5>
+                        <p>There was a problem processing your attendance: ${error.message}</p>
+                        <button class="btn btn-primary mt-2" onclick="location.reload()">Try Again</button>
+                    </div>
+                `;
+            });
+        }
+        
+        // Event listeners
+        startButton.addEventListener('click', startScanner);
+        stopButton.addEventListener('click', stopScanner);
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && scanning) {
+                // Stop scanning when page is hidden
+                stopScanner();
+            }
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,25 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12">
+        <h2>Welcome to your Dashboard</h2>
+        <p class="lead">Please use the navigation menu to access your features.</p>
+    </div>
+</div>
+
+<!-- Add this to the dashboard for admins and teachers -->
+{% if user.is_admin or user.is_teacher %}
+<div class="col-md-4 mb-4">
+    <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+            <h5 class="card-title">Blockchain Status</h5>
+            <p class="card-text">Check the status of the blockchain integration and view contract details.</p>
+            <a href="{% url 'blockchain_status' %}" class="btn btn-primary">View Status</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

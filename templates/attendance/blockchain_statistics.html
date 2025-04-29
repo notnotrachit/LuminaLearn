@@ -1,0 +1,133 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Blockchain Statistics{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Blockchain Statistics</h2>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Blockchain Statistics</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card border-primary h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Attendance Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Total Attendances:</strong> {{ total_attendance }}</p>
+                            <p><strong>Blockchain Verified:</strong> {{ blockchain_verified_attendance }}</p>
+                            <div class="progress mb-3">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ blockchain_percentage }}%" aria-valuenow="{{ blockchain_percentage }}" aria-valuemin="0" aria-valuemax="100">{{ blockchain_percentage }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card border-info h-100">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">Lecture Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Total Lectures:</strong> {{ total_lectures }}</p>
+                            <p><strong>On Blockchain:</strong> {{ lectures_on_blockchain }}</p>
+                            <p><strong>Total Sessions:</strong> {{ total_sessions }}</p>
+                            <p><strong>Verified Sessions:</strong> {{ blockchain_verified_sessions }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Transactions -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Recent Blockchain Transactions</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_attendances %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Lecture</th>
+                                    <th>Time</th>
+                                    <th>Transaction</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in recent_attendances %}
+                                <tr>
+                                    <td>{{ attendance.student.username }}</td>
+                                    <td>{{ attendance.lecture.title }}</td>
+                                    <td>{{ attendance.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if attendance.transaction_hash %}
+                                        <a href="https://stellar.expert/explorer/testnet/tx/{{ attendance.transaction_hash }}" target="_blank" class="badge bg-info text-white">
+                                            {{ attendance.transaction_hash|truncatechars:10 }}
+                                        </a>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No hash</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p class="mb-0">No blockchain-verified attendances yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Blockchain Info -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Blockchain Integration</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Contract ID:</strong> <code>CB76KFVFTR5AXPEN45INKWJEGL2QF2HJ2UGIOKWTZ2IOZRK453XVYAM2</code></p>
+                    <p><strong>Network:</strong> Stellar Testnet</p>
+                    <p class="mb-4"><strong>Explorer:</strong> <a href="https://stellar.expert/explorer/testnet/contract/CB76KFVFTR5AXPEN45INKWJEGL2QF2HJ2UGIOKWTZ2IOZRK453XVYAM2" target="_blank">View Contract</a></p>
+                    
+                    <a href="{% url 'blockchain_status' %}" class="btn btn-primary w-100 mb-2">Check Connection Status</a>
+                </div>
+            </div>
+            
+            <!-- Benefits -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Benefits of Blockchain</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">Tamper-proof attendance records</li>
+                        <li class="list-group-item">Decentralized verification</li>
+                        <li class="list-group-item">Transparent audit trail</li>
+                        <li class="list-group-item">Secure student identity</li>
+                        <li class="list-group-item">Immutable academic records</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

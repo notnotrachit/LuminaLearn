@@ -1,0 +1,202 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}{{ course.name }}{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-12 mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'course_list' %}">Courses</a></li>
+                <li class="breadcrumb-item active">{{ course.code }}</li>
+            </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>{{ course.name }} ({{ course.code }})</h2>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Course Details</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Teacher:</strong> {{ course.teacher.username }}</p>
+                <p><strong>Created:</strong> {{ course.created_at|date:"F d, Y" }}</p>
+                <p><strong>Students Enrolled:</strong> {{ enrollments.count }}</p>
+                <p><strong>Total Lectures:</strong> {{ lectures.count }}</p>
+            </div>
+        </div>
+        
+        <!-- Lectures Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Lectures</h5>
+                {% if is_teacher %}
+                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addLectureModal">Add Lecture</button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if lectures %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Attendance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lecture in lectures %}
+                            <tr>
+                                <td>{{ lecture.title }}</td>
+                                <td>{{ lecture.date|date:"M d, Y" }}</td>
+                                <td>{{ lecture.start_time|time:"H:i" }} - {{ lecture.end_time|time:"H:i" }}</td>
+                                <td>{{ lecture.attendances.count }} / {{ enrollments.count }}</td>
+                                <td>
+                                    <a href="{% url 'lecture_detail' lecture.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No lectures scheduled yet. {% if is_teacher %}<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addLectureModal">Add your first lecture</button>{% endif %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Students Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Students</h5>
+                {% if is_teacher %}
+                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add Student</button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if enrollments %}
+                <ul class="list-group">
+                    {% for enrollment in enrollments %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ enrollment.student.username }}
+                        <span class="badge bg-secondary">{{ enrollment.roll_number }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No students enrolled yet. {% if is_teacher %}<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add a student</button>{% endif %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Student Status -->
+        {% if user.is_student %}
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Your Status</h5>
+            </div>
+            <div class="card-body">
+                {% if is_enrolled %}
+                <div class="alert alert-success">
+                    <p class="mb-0">You are enrolled in this course.</p>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <p class="mb-0">You are not enrolled in this course. Please contact your teacher.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if is_teacher %}
+<!-- Add Lecture Modal -->
+<div class="modal fade" id="addLectureModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Add New Lecture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="lecture_form" value="true">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">Title</label>
+                        <input type="text" name="title" id="id_title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_date" class="form-label">Date</label>
+                        <input type="date" name="date" id="id_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_start_time" class="form-label">Start Time</label>
+                        <input type="time" name="start_time" id="id_start_time" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_end_time" class="form-label">End Time</label>
+                        <input type="time" name="end_time" id="id_end_time" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Lecture</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Add Student to Course</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="enrollment_form" value="true">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_student" class="form-label">Student</label>
+                        <select name="student" id="id_student" class="form-select" required>
+                            <option value="">Select Student</option>
+                            {% for student in enrollment_form.fields.student.queryset %}
+                            <option value="{{ student.id }}">{{ student.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_roll_number" class="form-label">Roll Number</label>
+                        <input type="text" name="roll_number" id="id_roll_number" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info">Add Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 
