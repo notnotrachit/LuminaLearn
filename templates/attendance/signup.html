@@ -1,36 +1,67 @@
 {% extends 'attendance/base.html' %}
+{% load attendance_tags %}
 
 {% block title %}Sign Up{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Sign Up as {% if user_type == 'teacher' %}Teacher{% elif user_type == 'admin' %}Admin{% else %}Student{% endif %}</h4>
+<div class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <div class="sm:mx-auto sm:w-full sm:max-w-md mb-6">
+                <h2 class="text-center text-3xl font-extrabold text-gray-900">
+                    {% if user_type == 'teacher' %}Teacher Sign Up
+                    {% elif user_type == 'admin' %}Admin Sign Up
+                    {% else %}Student Sign Up{% endif %}
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Join the blockchain-powered attendance system
+                </p>
             </div>
-            <div class="card-body">
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    
-                    {% for field in form %}
-                    <div class="mb-3">
-                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}
-                        <small class="form-text text-muted">{{ field.help_text }}</small>
+            
+            <form class="space-y-6" method="post" novalidate>
+                {% csrf_token %}
+                
+                {% for field in form %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+                    <div class="mt-1">
+                        {% if field.field.widget.input_type == 'password' %}
+                        <input type="password" name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" {% if field.field.required %}required{% endif %}>
+                        {% else %}
+                        <input type="{{ field.field.widget.input_type|default:'text' }}" name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" {% if field.field.required %}required{% endif %}>
                         {% endif %}
-                        {% for error in field.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
                     </div>
+                    {% if field.help_text %}
+                    <p class="mt-1 text-sm text-gray-500">{{ field.help_text }}</p>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                     {% endfor %}
-                    
-                    <button type="submit" class="btn btn-primary">Sign Up</button>
-                </form>
-            </div>
-            <div class="card-footer">
-                <p class="mb-0">Already have an account? <a href="{% url 'login' %}">Login</a></p>
+                </div>
+                {% endfor %}
+                
+                <div>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Sign Up
+                    </button>
+                </div>
+            </form>
+            
+            <div class="mt-6">
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">Already have an account?</span>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <a href="{% url 'login' %}" class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Sign in to your account
+                    </a>
+                </div>
             </div>
         </div>
     </div>

@@ -1,54 +1,88 @@
 {% extends 'attendance/base.html' %}
+{% load attendance_tags %}
 
 {% block title %}Teachers{% endblock %}
 
 {% block content %}
-<div class="row mt-3">
-    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
-        <h2>Teachers</h2>
-        {% if user.is_admin %}
-        <a href="{% url 'teacher_signup' %}" class="btn btn-success">Add Teacher</a>
-        {% endif %}
+<div class="bg-gradient-to-r from-teal-500 via-emerald-500 to-green-500 rounded-2xl p-8 shadow-xl mb-8 relative overflow-hidden">
+    <div class="absolute inset-0 bg-grid-white/[0.2] bg-[size:20px_20px]"></div>
+    <div class="relative z-10">
+        <h1 class="text-3xl font-bold text-white mb-2">Teachers</h1>
+        <p class="text-teal-100 text-lg">All teachers registered in the system</p>
     </div>
     
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Teacher List</h5>
-            </div>
-            <div class="card-body">
-                {% if teachers %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Username</th>
-                                <th>Email</th>
-                                <th>Courses</th>
-                                <th>Blockchain Wallet</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for teacher in teachers %}
-                            <tr>
-                                <td>{{ teacher.username }}</td>
-                                <td>{{ teacher.email }}</td>
-                                <td>{{ teacher.teaching_courses.count }}</td>
-                                <td>
-                                    <span class="text-truncate d-inline-block" style="max-width: 200px;">{{ teacher.stellar_public_key }}</span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">
-                    <p class="mb-0">No teachers available. {% if user.is_admin %}<a href="{% url 'teacher_signup' %}">Add a teacher</a>{% endif %}</p>
-                </div>
-                {% endif %}
-            </div>
+    <div class="absolute right-0 bottom-0 opacity-10">
+        <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+    </div>
+</div>
+
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div></div>
+    {% if user.is_admin %}
+    <a href="{% url 'teacher_signup' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-150">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+        </svg>
+        Add Teacher
+    </a>
+    {% endif %}
+</div>
+
+<div class="bg-white rounded-xl shadow-md overflow-hidden">
+    <div class="bg-gradient-to-r from-green-500 to-teal-500 px-6 py-4">
+        <h2 class="text-xl font-bold text-white">Teacher List</h2>
+    </div>
+    <div class="p-6">
+        {% if teachers %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Courses</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blockchain Wallet</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for teacher in teachers %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ teacher.username }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ teacher.email }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {{ teacher.teaching_courses.count }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div class="flex items-center">
+                                <span class="font-mono text-xs truncate max-w-xs">{{ teacher.stellar_public_key }}</span>
+                                <button onclick="navigator.clipboard.writeText('{{ teacher.stellar_public_key }}')" class="ml-2 text-gray-400 hover:text-gray-600" title="Copy to clipboard">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <div class="flex items-center p-4 bg-green-50 rounded-lg border border-green-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-sm text-green-700">No teachers available. {% if user.is_admin %}<a href="{% url 'teacher_signup' %}" class="font-medium underline">Add a teacher</a>{% endif %}</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %} 

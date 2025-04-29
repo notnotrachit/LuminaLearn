@@ -1,66 +1,104 @@
 {% extends 'attendance/base.html' %}
+{% load attendance_tags %}
 
 {% block title %}{{ course.name }}{% endblock %}
 
 {% block content %}
-<div class="row mt-3">
-    <div class="col-12 mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'course_list' %}">Courses</a></li>
-                <li class="breadcrumb-item active">{{ course.code }}</li>
-            </ol>
-        </nav>
-        
-        <div class="d-flex justify-content-between align-items-center">
-            <h2>{{ course.name }} ({{ course.code }})</h2>
+<div class="bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 rounded-2xl p-6 shadow-xl mb-8 relative overflow-hidden">
+    <div class="absolute inset-0 bg-grid-white/[0.2] bg-[size:20px_20px]"></div>
+    <div class="relative z-10">
+        <div class="flex items-center text-white mb-2">
+            <a href="{% url 'dashboard' %}" class="text-indigo-100 hover:text-white">Dashboard</a>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <a href="{% url 'course_list' %}" class="text-indigo-100 hover:text-white">Courses</a>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <span>{{ course.code }}</span>
         </div>
+        <h1 class="text-3xl font-bold text-white mb-1">{{ course.name }}</h1>
+        <p class="text-purple-100 text-lg">{{ course.code }}</p>
     </div>
-    
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Course Details</h5>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main content (2/3 width on large screens) -->
+    <div class="lg:col-span-2">
+        <!-- Course Details -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-500 px-6 py-4">
+                <h2 class="text-xl font-bold text-white">Course Details</h2>
             </div>
-            <div class="card-body">
-                <p><strong>Teacher:</strong> {{ course.teacher.username }}</p>
-                <p><strong>Created:</strong> {{ course.created_at|date:"F d, Y" }}</p>
-                <p><strong>Students Enrolled:</strong> {{ enrollments.count }}</p>
-                <p><strong>Total Lectures:</strong> {{ lectures.count }}</p>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-gray-700 mb-2"><span class="font-medium text-gray-900">Teacher:</span> {{ course.teacher.username }}</p>
+                        <p class="text-gray-700 mb-2"><span class="font-medium text-gray-900">Created:</span> {{ course.created_at|date:"F d, Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-700 mb-2"><span class="font-medium text-gray-900">Students Enrolled:</span> {{ enrollments.count }}</p>
+                        <p class="text-gray-700 mb-2"><span class="font-medium text-gray-900">Total Lectures:</span> {{ lectures.count }}</p>
+                    </div>
+                </div>
             </div>
         </div>
         
         <!-- Lectures Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Lectures</h5>
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-green-500 to-teal-500 px-6 py-4 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">Lectures</h2>
                 {% if is_teacher %}
-                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addLectureModal">Add Lecture</button>
+                <button type="button" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-teal-800 bg-teal-100 hover:bg-teal-200 focus:outline-none" data-bs-toggle="modal" data-bs-target="#addLectureModal">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Add Lecture
+                </button>
                 {% endif %}
             </div>
-            <div class="card-body">
+            <div class="p-6">
                 {% if lectures %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <th>Title</th>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Attendance</th>
-                                <th>Actions</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendance</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="bg-white divide-y divide-gray-200">
                             {% for lecture in lectures %}
-                            <tr>
-                                <td>{{ lecture.title }}</td>
-                                <td>{{ lecture.date|date:"M d, Y" }}</td>
-                                <td>{{ lecture.start_time|time:"H:i" }} - {{ lecture.end_time|time:"H:i" }}</td>
-                                <td>{{ lecture.attendances.count }} / {{ enrollments.count }}</td>
-                                <td>
-                                    <a href="{% url 'lecture_detail' lecture.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                            <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ lecture.title }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ lecture.date|date:"M d, Y" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ lecture.start_time|time:"H:i" }} - {{ lecture.end_time|time:"H:i" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div class="flex items-center">
+                                        <span class="mr-2">{{ lecture.attendances.count }} / {{ enrollments.count }}</span>
+                                        <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            {% if enrollments.count > 0 %}
+                                                {% with attendance_percent=lecture.attendances.count|floatformat:0|multiply:100|divide:enrollments.count|floatformat:0 %}
+                                                    <div class="h-full {% if attendance_percent < 50 %}bg-red-500{% elif attendance_percent < 75 %}bg-yellow-500{% else %}bg-green-500{% endif %}" 
+                                                        style="width: {{ attendance_percent }}%"></div>
+                                                {% endwith %}
+                                            {% else %}
+                                                <div class="h-full bg-gray-400" style="width: 0%"></div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <a href="{% url 'lecture_detail' lecture.id %}" class="text-indigo-600 hover:text-indigo-900 inline-flex items-center">
+                                        View
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -68,36 +106,64 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="alert alert-info">
-                    <p class="mb-0">No lectures scheduled yet. {% if is_teacher %}<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addLectureModal">Add your first lecture</button>{% endif %}</p>
+                <div class="flex items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-sm text-blue-700">
+                        No lectures scheduled yet. 
+                        {% if is_teacher %}
+                        <button type="button" class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-1" data-bs-toggle="modal" data-bs-target="#addLectureModal">
+                            Add your first lecture
+                        </button>
+                        {% endif %}
+                    </p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
     
-    <div class="col-md-4">
+    <!-- Sidebar (1/3 width on large screens) -->
+    <div class="lg:col-span-1">
         <!-- Students Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Students</h5>
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-blue-500 to-sky-500 px-6 py-4 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">Students</h2>
                 {% if is_teacher %}
-                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add Student</button>
+                <button type="button" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-800 bg-blue-100 hover:bg-blue-200 focus:outline-none" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Add Student
+                </button>
                 {% endif %}
             </div>
-            <div class="card-body">
+            <div class="p-6">
                 {% if enrollments %}
-                <ul class="list-group">
+                <div class="divide-y divide-gray-200">
                     {% for enrollment in enrollments %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ enrollment.student.username }}
-                        <span class="badge bg-secondary">{{ enrollment.roll_number }}</span>
-                    </li>
+                    <div class="py-3 flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-900">{{ enrollment.student.username }}</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {{ enrollment.roll_number }}
+                        </span>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
                 {% else %}
-                <div class="alert alert-info">
-                    <p class="mb-0">No students enrolled yet. {% if is_teacher %}<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add a student</button>{% endif %}</p>
+                <div class="flex items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-sm text-blue-700">
+                        No students enrolled yet.
+                        {% if is_teacher %}
+                        <button type="button" class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-1" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                            Add a student
+                        </button>
+                        {% endif %}
+                    </p>
                 </div>
                 {% endif %}
             </div>
@@ -105,18 +171,36 @@
         
         <!-- Student Status -->
         {% if user.is_student %}
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Your Status</h5>
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-500 px-6 py-4">
+                <h2 class="text-xl font-bold text-white">Your Status</h2>
             </div>
-            <div class="card-body">
+            <div class="p-6">
                 {% if is_enrolled %}
-                <div class="alert alert-success">
-                    <p class="mb-0">You are enrolled in this course.</p>
+                <div class="rounded-md bg-green-50 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-green-800">You are enrolled in this course.</p>
+                        </div>
+                    </div>
                 </div>
                 {% else %}
-                <div class="alert alert-warning">
-                    <p class="mb-0">You are not enrolled in this course. Please contact your teacher.</p>
+                <div class="rounded-md bg-yellow-50 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-yellow-800">You are not enrolled in this course. Please contact your teacher.</p>
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -128,36 +212,50 @@
 {% if is_teacher %}
 <!-- Add Lecture Modal -->
 <div class="modal fade" id="addLectureModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Add New Lecture</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-lg shadow-xl border-0">
+            <div class="modal-header bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-t-lg px-6 py-4">
+                <h5 class="modal-title text-lg font-bold">Add New Lecture</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="lecture_form" value="true">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="id_title" class="form-label">Title</label>
-                        <input type="text" name="title" id="id_title" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="id_date" class="form-label">Date</label>
-                        <input type="date" name="date" id="id_date" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="id_start_time" class="form-label">Start Time</label>
-                        <input type="time" name="start_time" id="id_start_time" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="id_end_time" class="form-label">End Time</label>
-                        <input type="time" name="end_time" id="id_end_time" class="form-control" required>
+                <div class="modal-body p-6">
+                    <div class="space-y-5">
+                        <div>
+                            <label for="id_title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                            <div class="mt-1">
+                                <input type="text" name="title" id="id_title" class="form-control shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm" placeholder="Enter lecture title" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="id_date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <div class="mt-1">
+                                <input type="date" name="date" id="id_date" class="form-control shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="id_start_time" class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                            <div class="mt-1">
+                                <input type="time" name="start_time" id="id_start_time" class="form-control shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="id_end_time" class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                            <div class="mt-1">
+                                <input type="time" name="end_time" id="id_end_time" class="form-control shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm" required>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Lecture</button>
+                <div class="modal-footer bg-gray-50 px-6 py-4 sm:px-6 rounded-b-lg flex flex-row-reverse">
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2.5 px-5 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-150">
+                        Add Lecture
+                    </button>
+                    <button type="button" class="inline-flex justify-center py-2.5 px-5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
                 </div>
             </form>
         </div>
@@ -166,33 +264,43 @@
 
 <!-- Add Student Modal -->
 <div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">Add Student to Course</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-lg shadow-xl border-0">
+            <div class="modal-header bg-gradient-to-r from-blue-500 to-sky-500 text-white rounded-t-lg px-6 py-4">
+                <h5 class="modal-title text-lg font-bold">Add Student to Course</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="enrollment_form" value="true">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="id_student" class="form-label">Student</label>
-                        <select name="student" id="id_student" class="form-select" required>
-                            <option value="">Select Student</option>
-                            {% for student in enrollment_form.fields.student.queryset %}
-                            <option value="{{ student.id }}">{{ student.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="id_roll_number" class="form-label">Roll Number</label>
-                        <input type="text" name="roll_number" id="id_roll_number" class="form-control" required>
+                <div class="modal-body p-6">
+                    <div class="space-y-5">
+                        <div>
+                            <label for="id_student" class="block text-sm font-medium text-gray-700 mb-1">Student</label>
+                            <div class="mt-1 relative">
+                                <select name="student" id="id_student" class="form-control shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm" required>
+                                    <option value="">Select Student</option>
+                                    {% for student in enrollment_form.fields.student.queryset %}
+                                    <option value="{{ student.id }}">{{ student.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="id_roll_number" class="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+                            <div class="mt-1">
+                                <input type="text" name="roll_number" id="id_roll_number" class="form-control shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm" placeholder="Enter roll number" required>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-info">Add Student</button>
+                <div class="modal-footer bg-gray-50 px-6 py-4 sm:px-6 rounded-b-lg flex flex-row-reverse">
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2.5 px-5 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150">
+                        Add Student
+                    </button>
+                    <button type="button" class="inline-flex justify-center py-2.5 px-5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
                 </div>
             </form>
         </div>
