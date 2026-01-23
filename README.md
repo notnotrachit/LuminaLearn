@@ -12,15 +12,16 @@
 - [Overview](#-overview)
 - [Key Features](#-key-features)
 - [Technology Stack](#-technology-stack)
-- [Architecture](#-architecture)
 - [Installation](#-installation)
+- [Architecture](#-architecture)
+- [Contributing](#-contributing)
+- [Deployment](#-deployment)
 - [Configuration](#-configuration)
 - [Usage Guide](#-usage-guide)
 - [API Documentation](#-api-documentation)
 - [Blockchain Integration](#-blockchain-integration)
 - [Security Considerations](#-security-considerations)
 - [Development Roadmap](#-development-roadmap)
-- [Contributing](#-contributing)
 
 ## 🌟 Overview
 
@@ -82,76 +83,18 @@ The platform supports three user roles (Admin, Teacher, and Student) with role-s
 - Chart.js for data visualization
 - Docker for containerization (optional)
 
-## 🏗 Architecture
-<div align="center">
-  <img src="architecture.png" alt="LuminaLearn Logo" width="400"/>
-</div>
-
-LuminaLearn follows a layered architecture with four primary components:
-
-### Frontend Layer
-User interface implemented with Django templates, Tailwind CSS, and JavaScript. Provides responsive views for different devices and user roles.
-
-### Application Layer
-Core business logic implemented in Django, handling user authentication, course management, attendance tracking, and reporting.
-
-### Data Layer
-Django ORM models storing application data, with relationships between users, courses, lectures, and attendance records.
-
-### Blockchain Integration Layer
-Integration with Stellar blockchain for secure attendance verification, with wallet management and transaction processing.
-
-For a detailed architecture diagram, see [architecture_diagram.md](architecture_diagram.md).
+For a detailed architecture overview, sequence flows, and database schema, please refer to the [Architecture Documentation](docs/architecture.md).
 
 ## 📥 Installation
 
-### Prerequisites
-- Python 3.8 or higher
-- pip (Python package manager)
-- Git
-- Virtual environment (recommended)
+For detailed step-by-step setup instructions on local development, please see the [Setup Guide](docs/setup.md).
 
-### Basic Installation
+### Quick Start
 
-1. Clone the repository:
+1. Clone and enter project: `git clone ... && cd LuminaLearn`
+2. Set up virtualenv and install requirements: `pip install -r requirements.txt`
+3. Run migrations and start server: `python manage.py migrate && python manage.py runserver`
 
-
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Set up the database:
-   ```bash
-   python manage.py migrate
-   ```
-
-5. Create a superuser:
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-6. Run the development server:
-   ```bash
-   python manage.py runserver
-   ```
-
-7. Access the application at `http://127.0.0.1:8000/`
-
-### Using Docker (Alternative)
-
-1. Build and run using Docker Compose:
-   ```bash
-   docker-compose up --build
-   ```
-
-2. Access the application at `http://127.0.0.1:8000/`
 
 ## ⚙️ Configuration
 
@@ -290,15 +233,11 @@ LuminaLearn uses the Stellar blockchain to store immutable attendance records:
 - Create marketplace for educational content
 - Enable cross-institution compatibility and credit transfers
 
-## 👥 Contributing
+We welcome contributions to LuminaLearn! Please refer to our [Contributing Guide](CONTRIBUTING.md) for details on our code style, PR process, and more.
 
-We welcome contributions to LuminaLearn! Please follow these steps:
+## 🚀 Deployment
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+For instructions on how to deploy LuminaLearn to a production environment, see the [Deployment Guide](docs/deployment.md).
 
 
 ---
