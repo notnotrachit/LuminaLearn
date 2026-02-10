@@ -30,6 +30,9 @@ urlpatterns = [
     # Home page
     path('', TemplateView.as_view(template_name='attendance/home.html'), name='home'),
     
+    # API routes
+    path('api/', include('attendance.api_urls')),
+    
     # Include attendance app URLs
     path('', include('attendance.urls')),
 ]
