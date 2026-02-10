@@ -3,16 +3,27 @@ from stellar_sdk.exceptions import NotFoundError, BadRequestError
 from stellar_sdk import SorobanServer, StrKey
 from stellar_sdk.operation import InvokeHostFunction, Payment
 from stellar_sdk.xdr import HostFunction
+from django.conf import settings
 import base64
 import hashlib
 import secrets
 import time
 
-# For testing, we'll use testnet
-HORIZON_URL = "https://horizon-testnet.stellar.org"
-SOROBAN_RPC_URL = "https://soroban-testnet.stellar.org"
-NETWORK_PASSPHRASE = Network.TESTNET_NETWORK_PASSPHRASE
-CONTRACT_ID = "CB76KFVFTR5AXPEN45INKWJEGL2QF2HJ2UGIOKWTZ2IOZRK453XVYAM2"  # Updated with the deployed contract ID
+# Configuration from Django settings
+def get_horizon_url():
+    return settings.STELLAR_HORIZON_URL
+
+def get_soroban_rpc_url():
+    return settings.STELLAR_RPC_URL
+
+def get_network_passphrase():
+    return Network.TESTNET_NETWORK_PASSPHRASE if settings.STELLAR_TESTNET else Network.PUBLIC_NETWORK_PASSPHRASE
+
+def get_contract_id():
+    return settings.STELLAR_CONTRACT_ID
+
+def get_admin_secret():
+    return getattr(settings, 'STELLAR_ADMIN_SECRET', '')
 
 class StellarHelper:
     @staticmethod
@@ -49,7 +60,7 @@ class StellarHelper:
         """
         Initialize the attendance contract with an admin
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": "Contract initialized (simulated)"}
         
         try:
@@ -57,8 +68,8 @@ class StellarHelper:
             admin_keypair = Keypair.from_secret(admin_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
-            soroban_server = SorobanServer(SOROBAN_RPC_URL)
+            server = Server(horizon_url=get_horizon_url())
+            soroban_server = SorobanServer(get_soroban_rpc_url())
             
             # Get the current account details
             admin_account = server.load_account(admin_keypair.public_key)
@@ -67,7 +78,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=admin_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .add_text_memo("Initialize contract")
@@ -88,7 +99,7 @@ class StellarHelper:
         """
         Register a teacher in the smart contract
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": "Teacher registered (simulated)"}
         
         try:
@@ -96,7 +107,7 @@ class StellarHelper:
             teacher_keypair = Keypair.from_secret(teacher_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             teacher_account = server.load_account(teacher_keypair.public_key)
@@ -105,7 +116,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=teacher_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .add_text_memo("Register teacher")
@@ -126,7 +137,7 @@ class StellarHelper:
         """
         Register a student in the smart contract
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": "Student registered (simulated)"}
         
         try:
@@ -134,7 +145,7 @@ class StellarHelper:
             student_keypair = Keypair.from_secret(student_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             student_account = server.load_account(student_keypair.public_key)
@@ -143,7 +154,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=student_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .add_text_memo("Register student")
@@ -164,7 +175,7 @@ class StellarHelper:
         """
         Create a lecture entry in the smart contract
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": f"Lecture {lecture_id} created (simulated)"}
         
         try:
@@ -172,7 +183,7 @@ class StellarHelper:
             teacher_keypair = Keypair.from_secret(teacher_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             teacher_account = server.load_account(teacher_keypair.public_key)
@@ -182,7 +193,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=teacher_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .append_payment_op(
@@ -211,7 +222,7 @@ class StellarHelper:
         """
         Start an attendance session for a lecture
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": f"Attendance started for {lecture_id} (simulated)"}
         
         try:
@@ -219,7 +230,7 @@ class StellarHelper:
             teacher_keypair = Keypair.from_secret(teacher_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             teacher_account = server.load_account(teacher_keypair.public_key)
@@ -228,7 +239,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=teacher_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .append_payment_op(
@@ -262,7 +273,7 @@ class StellarHelper:
         """
         Mark attendance for a student in a lecture
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": f"Attendance marked for {lecture_id} (simulated)"}
         
         try:
@@ -270,7 +281,7 @@ class StellarHelper:
             student_keypair = Keypair.from_secret(student_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             student_account = server.load_account(student_keypair.public_key)
@@ -279,7 +290,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=student_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .append_payment_op(
@@ -305,7 +316,7 @@ class StellarHelper:
         """
         Close an active attendance session
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": f"Attendance session closed for {lecture_id} (simulated)"}
         
         try:
@@ -313,7 +324,7 @@ class StellarHelper:
             teacher_keypair = Keypair.from_secret(teacher_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             teacher_account = server.load_account(teacher_keypair.public_key)
@@ -322,7 +333,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=teacher_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .append_payment_op(
@@ -348,7 +359,7 @@ class StellarHelper:
         """
         Manually mark attendance for a student
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "success", "message": f"Manual attendance marked for {lecture_id} (simulated)"}
         
         try:
@@ -356,7 +367,7 @@ class StellarHelper:
             teacher_keypair = Keypair.from_secret(teacher_seed)
             
             # Connect to the Stellar network
-            server = Server(horizon_url=HORIZON_URL)
+            server = Server(horizon_url=get_horizon_url())
             
             # Get the current account details
             teacher_account = server.load_account(teacher_keypair.public_key)
@@ -365,7 +376,7 @@ class StellarHelper:
             transaction = (
                 TransactionBuilder(
                     source_account=teacher_account,
-                    network_passphrase=NETWORK_PASSPHRASE,
+                    network_passphrase=get_network_passphrase(),
                     base_fee=100000  # Adjust as needed
                 )
                 .append_payment_op(
@@ -391,7 +402,7 @@ class StellarHelper:
         """
         Verify if a student has attended a lecture
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return True
         
         try:
@@ -406,18 +417,18 @@ class StellarHelper:
         """
         Verify that the contract connection is working properly
         """
-        if not CONTRACT_ID:
+        if not get_contract_id():
             return {"status": "error", "message": "No contract ID provided"}
         
         try:
             # First try connecting to Horizon
             try:
-                server = Server(horizon_url=HORIZON_URL)
+                server = Server(horizon_url=get_horizon_url())
                 network_response = server.root().call()
                 horizon_connected = True
                 
                 # Now try connecting to Soroban RPC
-                soroban_server = SorobanServer(SOROBAN_RPC_URL)
+                soroban_server = SorobanServer(get_soroban_rpc_url())
                 soroban_info = soroban_server.get_health()
                 soroban_connected = True
             except Exception as e:
@@ -430,21 +441,21 @@ class StellarHelper:
                 return {
                     "status": "success",
                     "message": "Successfully connected to Stellar network and Soroban RPC.",
-                    "contract_id": CONTRACT_ID,
+                    "contract_id": get_contract_id(),
                     "network_info": "Connected to Horizon and Soroban APIs"
                 }
             elif horizon_connected:
                 return {
                     "status": "partial",
                     "message": "Connected to Stellar network, but Soroban RPC connection failed.",
-                    "contract_id": CONTRACT_ID,
+                    "contract_id": get_contract_id(),
                     "network_info": "Connected to Horizon API only"
                 }
             else:
                 return {
                     "status": "error",
                     "message": f"Could not connect to Stellar network: {connection_error}",
-                    "contract_id": CONTRACT_ID
+                    "contract_id": get_contract_id()
                 }
                 
         except Exception as e:
