@@ -1,0 +1,11 @@
+# Django Redis Cache Requirements
+# Add this to your main requirements.txt file
+
+# Redis cache backend for Django
+django-redis==5.4.0
+
+# Redis Python client (dependency of django-redis)
+redis==5.0.1
+
+# Optional: For advanced Redis monitoring
+hiredis==2.2.3

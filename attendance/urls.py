@@ -31,4 +31,7 @@ urlpatterns = [
     
     # Add blockchain statistics URL
     path('blockchain/statistics/', views.blockchain_statistics, name='blockchain_statistics'),
+    
+    # Cache monitoring (admin only)
+    path('admin/cache-stats/', views.cache_stats, name='cache_stats'),
 ] 
