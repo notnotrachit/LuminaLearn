@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import date, time
-from .models import Course, Enrollment, Lecture, AttendanceSession, Attendance
+from ..models import Course, Enrollment, Lecture, AttendanceSession, Attendance
 
 User = get_user_model()
 
@@ -256,7 +256,7 @@ class LectureAPITestCase(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 class UserAPITestCase(APITestCase):
     """Test User API endpoints (read-only)"""

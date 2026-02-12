@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from .models import Course, Enrollment, Lecture, AttendanceSession, Attendance
@@ -113,9 +114,11 @@ class LectureListCreateAPIView(generics.ListCreateAPIView):
         return Lecture.objects.all()
     
     def perform_create(self, serializer):
-        course_id = self.request.data.get('course_id')
-        course = get_object_or_404(Course, id=course_id, teacher=self.request.user)
-        serializer.save(course=course)
+        # Validate user owns the course via serializer
+        course = serializer.validated_data['course']
+        if course.teacher != self.request.user:
+            raise PermissionDenied("You can only create lectures for your own courses")
+        serializer.save()
 
 class LectureDetailUpdateAPIView(generics.RetrieveUpdateAPIView):
     """Retrieve and update lecture details (teachers only for updates)"""

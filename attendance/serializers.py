@@ -57,9 +57,15 @@ class LectureSerializer(serializers.ModelSerializer):
 
 class LectureWriteSerializer(serializers.ModelSerializer):
     """Write-only serializer for Lecture creation/updates"""
+    course_id = serializers.PrimaryKeyRelatedField(
+        queryset=Course.objects.all(),
+        source="course",
+        write_only=True
+    )
+    
     class Meta:
         model = Lecture
-        fields = ['title', 'date', 'start_time', 'end_time']
+        fields = ['title', 'date', 'start_time', 'end_time', 'course_id']
 
 class AttendanceSessionSerializer(serializers.ModelSerializer):
     """Serializer for AttendanceSession model"""
