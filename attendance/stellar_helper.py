@@ -22,9 +22,6 @@ def get_network_passphrase():
 def get_contract_id():
     return settings.STELLAR_CONTRACT_ID
 
-def get_admin_secret():
-    return getattr(settings, 'STELLAR_ADMIN_SECRET', '')
-
 class StellarHelper:
     @staticmethod
     def create_keypair():
