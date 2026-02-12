@@ -32,15 +32,23 @@ env = environ.Env(
     STATIC_URL=(str, '/static/'),
 )
 
-# Read .env file
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+# Read .env file if it exists (avoid hard coupling)
+env_file = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_file):
+    environ.Env.read_env(env_file)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY') or 'django-insecure-key-replace-in-production'
+SECRET_KEY = env('SECRET_KEY', default=None)
+
+if not SECRET_KEY:
+    if env.bool("DEBUG", default=True):
+        SECRET_KEY = "dev-insecure-key"
+    else:
+        raise ValueError("SECRET_KEY environment variable must be set in production.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
