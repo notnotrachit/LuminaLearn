@@ -10,9 +10,8 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache
-from django.conf import settings
 from datetime import datetime
-import time
+import logging
 
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
 from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
@@ -616,6 +615,8 @@ class RateLimitedPasswordResetView(PasswordResetView):
     Allows maximum 5 reset attempts per IP per hour.
     """
     template_name = 'attendance/password_reset_form.html'
+    email_template_name = 'registration/password_reset_email.txt'
+    html_email_template_name = 'registration/password_reset_email.html'
     success_url = reverse_lazy('password_reset_done')
     
     # Rate limiting settings
@@ -663,16 +664,14 @@ class RateLimitedPasswordResetView(PasswordResetView):
         self.increment_attempt()
         
         # Log the attempt for security monitoring
-        email = form.cleaned_data.get('email', '')
-        ip_address = self.get_client_ip()
-        cache_key = self.get_rate_limit_key()
-        remaining_attempts = self.MAX_ATTEMPTS - cache.get(cache_key, 0)
+        logger = logging.getLogger(__name__)
+        logger.info(f"Password reset attempt from IP {self.get_client_ip()}")
         
         # Add informational message
         messages.info(
             self.request,
             f"Password reset email sent if the account exists. "
-            f"You have {max(0, remaining_attempts)} attempts remaining this hour."
+            f"You have {max(0, self.MAX_ATTEMPTS - cache.get(self.get_rate_limit_key(), 0))} attempts remaining this hour."
         )
         
         return super().form_valid(form)

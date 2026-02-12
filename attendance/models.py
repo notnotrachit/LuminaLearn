@@ -44,8 +44,8 @@ class Lecture(models.Model):
 class AttendanceSession(models.Model):
     lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, related_name='sessions')
     start_time = models.DateTimeField(auto_now_add=True)
-    end_time = models.DateTimeField()
-    nonce = models.CharField(max_length=100) # Used for QR code verification
+    end_time = models.DateTimeField(null=True, blank=True)
+    nonce = models.CharField(max_length=100, default='')  # Used for QR code verification
     is_active = models.BooleanField(default=True)
     blockchain_verified = models.BooleanField(default=False) # Whether session was recorded on blockchain
     
