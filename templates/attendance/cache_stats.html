@@ -1,0 +1,134 @@
+{% extends 'attendance/base.html' %}
+{% load attendance_tags %}
+
+{% block title %}Cache Statistics{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
+                <h1 class="text-2xl font-bold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v13a2 2 0 002 2z"></path>
+                    </svg>
+                    Cache Statistics & Monitoring
+                </h1>
+                <p class="text-indigo-100 mt-1">System cache performance and configuration</p>
+            </div>
+            
+            <div class="p-6">
+                {% if cache_stats.error %}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-start">
+                        <svg class="h-5 w-5 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Cache System Error</h3>
+                            <p class="mt-1 text-sm text-red-700">{{ cache_stats.error }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                
+                <!-- Cache Backend Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Backend Information</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Backend Type:</span>
+                                <span class="font-medium">{{ cache_stats.backend_type }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Location:</span>
+                                <span class="font-medium">{{ cache_stats.cache_location|default:"Local Memory" }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Connectivity:</span>
+                                <span class="font-medium">
+                                    {% if cache_stats.connectivity == "OK" %}
+                                        <span class="text-green-600">✓ {{ cache_stats.connectivity }}</span>
+                                    {% else %}
+                                        <span class="text-red-600">✗ {{ cache_stats.connectivity }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cache Timeouts -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Cache Timeouts (seconds)</h3>
+                        <div class="space-y-2">
+                            {% for cache_type, timeout in cache_stats.timeouts.items %}
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 capitalize">{{ cache_type|title }}:</span>
+                                <span class="font-medium">{{ timeout }}s</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cache Status -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Cache Key Status</h3>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        {% if cache_stats.cache_status %}
+                            <div class="grid grid-cols-1 gap-3">
+                                {% for key, status in cache_stats.cache_status.items %}
+                                <div class="flex items-center justify-between bg-white rounded px-3 py-2">
+                                    <span class="text-sm text-gray-700 font-mono">{{ key }}</span>
+                                    <span class="px-2 py-1 rounded text-xs font-medium
+                                        {% if status == 'HIT' %}bg-green-100 text-green-800
+                                        {% elif status == 'MISS' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{ status }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-gray-500 italic">No cache keys found</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Cache Performance Tips -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-start">
+                        <svg class="h-5 w-5 text-blue-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">Cache Performance Tips</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>Monitor HIT/MISS ratios to optimize cache effectiveness</li>
+                                    <li>Check cache connectivity regularly, especially in production</li>
+                                    <li>Adjust timeout values based on data update frequency</li>
+                                    <li>Review cache logs in /logs/cache.log for detailed monitoring</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% endif %}
+                
+                <!-- Actions -->
+                <div class="flex space-x-4">
+                    <a href="{% url 'dashboard' %}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md transition duration-300">
+                        ← Back to Dashboard
+                    </a>
+                    <a href="{% url 'cache_stats' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition duration-300">
+                        🔄 Refresh Stats
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

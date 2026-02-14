@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'attendance',
     'crispy_forms',
+    'django_redis',
 ]
 
 MIDDLEWARE = [
@@ -162,6 +163,83 @@ LOGOUT_REDIRECT_URL = 'home'
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 # Stellar blockchain settings
+STELLAR_TESTNET = True
+STELLAR_HORIZON_URL = "https://horizon-testnet.stellar.org" if STELLAR_TESTNET else "https://horizon.stellar.org"
+STELLAR_RPC_URL = "https://soroban-testnet.stellar.org" if STELLAR_TESTNET else "https://soroban.stellar.org"
+
+# Cache Configuration
+# Redis Cache Backend with graceful fallback to local memory cache
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/1')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+                'socket_keepalive_options': {},
+                'health_check_interval': 30,
+            }
+        },
+        'KEY_PREFIX': 'lumina_learn',
+        'TIMEOUT': 300,  # Default timeout of 5 minutes
+        'VERSION': 1,
+    },
+    'fallback': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        }
+    }
+}
+
+# Cache timeouts for different types of data
+CACHE_TIMEOUT_COURSE_LIST = int(os.getenv('CACHE_TIMEOUT_COURSE_LIST', '600'))  # 10 minutes
+CACHE_TIMEOUT_STUDENT_LIST = int(os.getenv('CACHE_TIMEOUT_STUDENT_LIST', '300'))  # 5 minutes  
+CACHE_TIMEOUT_LECTURE_DETAIL = int(os.getenv('CACHE_TIMEOUT_LECTURE_DETAIL', '1200'))  # 20 minutes
+CACHE_TIMEOUT_BLOCKCHAIN_STATUS = int(os.getenv('CACHE_TIMEOUT_BLOCKCHAIN_STATUS', '180'))  # 3 minutes
+
+# Logging configuration for cache monitoring
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'cache': {
+            'format': '{asctime} [{levelname}] {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'cache_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'cache.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'cache',
+        },
+    },
+    'loggers': {
+        'lumina_learn.cache': {
+            'handlers': ['console', 'cache_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 STELLAR_NETWORK = env('STELLAR_NETWORK')
 STELLAR_TESTNET = STELLAR_NETWORK == 'testnet'
 STELLAR_HORIZON_URL = env('STELLAR_HORIZON_URL')

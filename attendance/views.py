@@ -8,7 +8,10 @@ from django.db import transaction
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.conf import settings
 from datetime import datetime
+
+from .cache_utils import cached_view, cached_data, CacheManager
 
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
 from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
@@ -34,6 +37,10 @@ class AdminSignUpView(CreateView):
         user.stellar_public_key = keypair['public_key']
         user.stellar_seed = keypair['secret_seed']
         user.save()
+        
+        # Invalidate user-related caches
+        CacheManager.invalidate_related_cache('user', user.pk, 'create')
+        
         # Fund the account on testnet
         StellarHelper.fund_account(user.stellar_public_key)
         # Register user on the blockchain
@@ -56,6 +63,10 @@ def teacher_signup(request):
             user.stellar_public_key = keypair['public_key']
             user.stellar_seed = keypair['secret_seed']
             user.save()
+            
+            # Invalidate user-related caches
+            CacheManager.invalidate_related_cache('user', user.pk, 'create')
+            
             # Fund the account on testnet
             StellarHelper.fund_account(user.stellar_public_key)
             # Register teacher on the blockchain
@@ -136,6 +147,11 @@ def dashboard(request):
 
 # Course Management Views
 @login_required
+@cached_view(
+    timeout=getattr(settings, 'CACHE_TIMEOUT_COURSE_LIST', 600),
+    key_prefix=CacheManager.COURSE_LIST_PREFIX,
+    vary_on=['search', 'filter']
+)
 def course_list(request):
     if request.user.is_admin:
         courses = Course.objects.all()
@@ -168,6 +184,11 @@ def course_detail(request, pk):
                 enrollment = enrollment_form.save(commit=False)
                 enrollment.course = course
                 enrollment.save()
+                
+                # Invalidate related caches
+                CacheManager.invalidate_related_cache('enrollment', enrollment.pk, 'create')
+                CacheManager.invalidate_related_cache('course', course.pk, 'update')
+                
                 messages.success(request, "Student added to the course successfully!")
                 return redirect('course_detail', pk=course.pk)
         else:
@@ -182,6 +203,10 @@ def course_detail(request, pk):
                 lecture = lecture_form.save(commit=False)
                 lecture.course = course
                 lecture.save()
+                
+                # Invalidate related caches
+                CacheManager.invalidate_related_cache('lecture', lecture.pk, 'create')
+                CacheManager.invalidate_related_cache('course', course.pk, 'update')
                 
                 # Create lecture in blockchain
                 # Calculate duration in minutes from start_time and end_time
@@ -232,6 +257,10 @@ def create_course(request):
             course = form.save(commit=False)
             course.teacher = request.user
             course.save()
+            
+            # Invalidate related caches
+            CacheManager.invalidate_related_cache('course', course.pk, 'create')
+            
             messages.success(request, "Course created successfully!")
             return redirect('course_detail', pk=course.pk)
     else:
@@ -241,6 +270,10 @@ def create_course(request):
 
 # Lecture and Attendance Views
 @login_required
+@cached_view(
+    timeout=getattr(settings, 'CACHE_TIMEOUT_LECTURE_DETAIL', 1200),
+    key_prefix=CacheManager.LECTURE_DETAIL_PREFIX
+)
 def lecture_detail(request, pk):
     lecture = get_object_or_404(Lecture, pk=pk)
     course = lecture.course
@@ -402,6 +435,10 @@ def process_attendance(request):
                 attendance.transaction_hash = blockchain_response['hash']
                 attendance.save()
                 
+                # Invalidate blockchain statistics cache only 
+                # (attendance data is too dynamic for general caching)
+                CacheManager.invalidate_related_cache('blockchain_status')
+                
                 response_message = 'Attendance marked successfully and recorded on blockchain!'
             else:
                 response_message = 'Attendance marked successfully, but blockchain recording failed.'
@@ -533,6 +570,11 @@ def teacher_list(request):
     return render(request, 'attendance/teacher_list.html', {'teachers': teachers})
 
 @login_required
+@cached_view(
+    timeout=getattr(settings, 'CACHE_TIMEOUT_STUDENT_LIST', 300),
+    key_prefix=CacheManager.STUDENT_LIST_PREFIX,
+    vary_on=['course_id', 'search']
+)
 def student_list(request):
     if not (request.user.is_admin or request.user.is_teacher):
         messages.error(request, "You don't have permission to view student list.")
@@ -571,6 +613,10 @@ def check_blockchain_connection(request):
     })
 
 @login_required
+@cached_view(
+    timeout=getattr(settings, 'CACHE_TIMEOUT_BLOCKCHAIN_STATUS', 180),
+    key_prefix=CacheManager.BLOCKCHAIN_STATUS_PREFIX
+)
 def blockchain_statistics(request):
     """
     View to display blockchain-related statistics
@@ -603,4 +649,67 @@ def blockchain_statistics(request):
         'blockchain_verified_sessions': blockchain_verified_sessions,
         'recent_attendances': recent_attendances,
         'blockchain_percentage': int(blockchain_verified_attendance / max(total_attendance, 1) * 100)
+    })
+
+
+@login_required
+def cache_stats(request):
+    """
+    View to display cache statistics and monitoring information.
+    Only available to admin users.
+    """
+    if not request.user.is_staff:
+        messages.error(request, "You don't have permission to access cache statistics.")
+        return redirect('dashboard')
+    
+    cache_stats_data = {}
+    
+    try:
+        # Get cache backend info
+        cache_backend = CacheManager.get_cache_backend()
+        
+        # Basic cache info
+        cache_stats_data['backend_type'] = str(type(cache_backend).__name__)
+        cache_stats_data['cache_location'] = getattr(cache_backend, '_cache', {}).get('CONNECTION_POOL_KWARGS', {}).get('host', 'Local Memory')
+        
+        # Test cache connectivity
+        try:
+            test_key = 'cache_connectivity_test'
+            cache_backend.set(test_key, 'test_value', 10)
+            test_result = cache_backend.get(test_key)
+            cache_stats_data['connectivity'] = 'OK' if test_result == 'test_value' else 'Failed'
+            cache_backend.delete(test_key)
+        except Exception as e:
+            cache_stats_data['connectivity'] = f'Error: {str(e)}'
+        
+        # Generate sample cache keys that might be present
+        sample_keys = [
+            CacheManager.generate_cache_key(CacheManager.COURSE_LIST_PREFIX),
+            CacheManager.generate_cache_key(CacheManager.STUDENT_LIST_PREFIX),
+            CacheManager.generate_cache_key(CacheManager.BLOCKCHAIN_STATUS_PREFIX),
+        ]
+        
+        cache_status = {}
+        for key in sample_keys:
+            try:
+                cached_value = cache_backend.get(key)
+                cache_status[key] = 'HIT' if cached_value is not None else 'MISS'
+            except Exception as e:
+                cache_status[key] = f'ERROR: {str(e)}'
+        
+        cache_stats_data['cache_status'] = cache_status
+        
+        # Configuration info
+        cache_stats_data['timeouts'] = {
+            'course_list': getattr(settings, 'CACHE_TIMEOUT_COURSE_LIST', 600),
+            'student_list': getattr(settings, 'CACHE_TIMEOUT_STUDENT_LIST', 300),
+            'lecture_detail': getattr(settings, 'CACHE_TIMEOUT_LECTURE_DETAIL', 1200),
+            'blockchain_status': getattr(settings, 'CACHE_TIMEOUT_BLOCKCHAIN_STATUS', 180),
+        }
+        
+    except Exception as e:
+        cache_stats_data['error'] = f"Failed to retrieve cache statistics: {str(e)}"
+    
+    return render(request, 'attendance/cache_stats.html', {
+        'cache_stats': cache_stats_data
     })
