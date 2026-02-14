@@ -12,21 +12,48 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Initialize environment variables
+env = environ.Env(
+    # Cast to appropriate types and set default values
+    DEBUG=(bool, False),
+    SECRET_KEY=(str, ''),
+    DATABASE_URL=(str, f'sqlite:///{BASE_DIR}/db.sqlite3'),
+    ALLOWED_HOSTS=(list, []),
+    STELLAR_NETWORK=(str, 'testnet'),
+    STELLAR_HORIZON_URL=(str, 'https://horizon-testnet.stellar.org'),
+    STELLAR_RPC_URL=(str, 'https://soroban-testnet.stellar.org'),
+    STELLAR_CONTRACT_ID=(str, ''),
+    STELLAR_ADMIN_SECRET=(str, ''),
+    STATIC_URL=(str, '/static/'),
+)
+
+# Read .env file if it exists (avoid hard coupling)
+env_file = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_file):
+    environ.Env.read_env(env_file)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-key-replace-in-production'
+SECRET_KEY = env('SECRET_KEY', default=None)
+
+if not SECRET_KEY:
+    if env.bool("DEBUG", default=True):
+        SECRET_KEY = "dev-insecure-key"
+    else:
+        raise ValueError("SECRET_KEY environment variable must be set in production.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env('ALLOWED_HOSTS') or []
 
 
 # Application definition
@@ -77,10 +104,7 @@ WSGI_APPLICATION = 'attendance_system.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db_url('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3')
 }
 
 
@@ -121,7 +145,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = env('STATIC_URL')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Default primary key field type
@@ -174,3 +198,9 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+STELLAR_NETWORK = env('STELLAR_NETWORK')
+STELLAR_TESTNET = STELLAR_NETWORK == 'testnet'
+STELLAR_HORIZON_URL = env('STELLAR_HORIZON_URL')
+STELLAR_RPC_URL = env('STELLAR_RPC_URL')
+STELLAR_CONTRACT_ID = env('STELLAR_CONTRACT_ID')
+STELLAR_ADMIN_SECRET = env('STELLAR_ADMIN_SECRET')
