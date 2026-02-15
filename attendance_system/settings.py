@@ -202,6 +202,37 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
     'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
     'JTI_CLAIM': 'jti',
+# Email Configuration
+# Use environment variables for production, development backend for testing
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+
+# Email settings for production (when using SMTP)
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+# Validate TLS/SSL mutual exclusivity
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ValueError(
+        "Invalid email configuration: both EMAIL_USE_TLS and EMAIL_USE_SSL are True."
+    )
+
+# Default from email address
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@luminallearn.com')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Password reset settings
+PASSWORD_RESET_TIMEOUT = 86400  # 24 hours in seconds
+
+# Cache configuration for rate limiting
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
 }
 STELLAR_NETWORK = env('STELLAR_NETWORK')
 STELLAR_TESTNET = STELLAR_NETWORK == 'testnet'

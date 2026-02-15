@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import PasswordResetView
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
@@ -8,7 +9,9 @@ from django.db import transaction
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.cache import cache
 from datetime import datetime
+import logging
 
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
 from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
@@ -604,3 +607,71 @@ def blockchain_statistics(request):
         'recent_attendances': recent_attendances,
         'blockchain_percentage': int(blockchain_verified_attendance / max(total_attendance, 1) * 100)
     })
+
+
+class RateLimitedPasswordResetView(PasswordResetView):
+    """
+    Password reset view with rate limiting to prevent abuse.
+    Allows maximum 5 reset attempts per IP per hour.
+    """
+    template_name = 'attendance/password_reset_form.html'
+    email_template_name = 'registration/password_reset_email.txt'
+    html_email_template_name = 'registration/password_reset_email.html'
+    success_url = reverse_lazy('password_reset_done')
+    
+    # Rate limiting settings
+    MAX_ATTEMPTS = 5  # Maximum attempts per hour
+    RATE_LIMIT_WINDOW = 3600  # 1 hour in seconds
+    
+    def get_rate_limit_key(self):
+        """Generate cache key for rate limiting based on IP address"""
+        ip_address = self.get_client_ip()
+        return f"password_reset_limit_{ip_address}"
+    
+    def get_client_ip(self):
+        """Get client IP address from request"""
+        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = self.request.META.get('REMOTE_ADDR')
+        return ip
+    
+    def is_rate_limited(self):
+        """Check if current IP is rate limited"""
+        cache_key = self.get_rate_limit_key()
+        current_attempts = cache.get(cache_key, 0)
+        return current_attempts >= self.MAX_ATTEMPTS
+    
+    def increment_attempt(self):
+        """Increment rate limit counter for current IP"""
+        cache_key = self.get_rate_limit_key()
+        current_attempts = cache.get(cache_key, 0)
+        cache.set(cache_key, current_attempts + 1, self.RATE_LIMIT_WINDOW)
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Check rate limiting before processing request"""
+        if self.is_rate_limited():
+            messages.error(
+                request, 
+                f"Too many password reset attempts. Please try again in 1 hour."
+            )
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def form_valid(self, form):
+        """Process valid form and increment rate limit counter"""
+        self.increment_attempt()
+        
+        # Log the attempt for security monitoring
+        logger = logging.getLogger(__name__)
+        logger.info(f"Password reset attempt from IP {self.get_client_ip()}")
+        
+        # Add informational message
+        messages.info(
+            self.request,
+            f"Password reset email sent if the account exists. "
+            f"You have {max(0, self.MAX_ATTEMPTS - cache.get(self.get_rate_limit_key(), 0))} attempts remaining this hour."
+        )
+        
+        return super().form_valid(form)
