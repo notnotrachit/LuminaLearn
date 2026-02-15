@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='attendancesession',
             name='end_time',
-            field=models.DateTimeField(default='True'),
+            field=models.DateTimeField(),
             preserve_default=False,
         ),
         migrations.AlterField(

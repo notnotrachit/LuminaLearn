@@ -44,6 +44,57 @@
                 </div>
             </div>
         </div>
+
+        <!-- Enrollment Information (for teachers) -->
+        {% if is_teacher %}
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-4">
+                <h2 class="text-xl font-bold text-white">Student Enrollment</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Enrollment Code</h3>
+                        <div class="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
+                            <div class="flex items-center justify-between">
+                                <code class="text-2xl font-mono font-bold text-blue-600">{{ course.enrollment_code }}</code>
+                                <button onclick="copyEnrollmentCode()" class="ml-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors" title="Copy code">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">Share this code with students to allow them to enroll in your course.</p>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Shareable Link</h3>
+                        <div class="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
+                            <div class="flex items-center">
+                                <input type="text" id="enrollmentLink" readonly 
+                                       value="{{ request.build_absolute_uri }}{% url 'enroll_with_code' %}?code={{ course.enrollment_code }}"
+                                       class="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none">
+                                <button onclick="copyEnrollmentLink()" class="ml-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors" title="Copy link">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">Students can click this link to enroll directly.</p>
+                    </div>
+                </div>
+                
+                {% if course.enrollment_expires_at %}
+                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-amber-600 mr-2"></i>
+                        <span class="text-amber-800">
+                            Enrollment expires on {{ course.enrollment_expires_at|date:"F d, Y \a\\t g:i A" }}
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         
         <!-- Lectures Section -->
         <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
@@ -307,4 +358,50 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+// JavaScript functions for copying enrollment information
+function copyEnrollmentCode() {
+    const code = "{{ course.enrollment_code }}";
+    navigator.clipboard.writeText(code).then(function() {
+        showCopyNotification('Enrollment code copied to clipboard!');
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+
+function copyEnrollmentLink() {
+    const linkInput = document.getElementById('enrollmentLink');
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999);
+    
+    navigator.clipboard.writeText(linkInput.value).then(function() {
+        showCopyNotification('Enrollment link copied to clipboard!');
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+
+function showCopyNotification(message) {
+    // Create a temporary notification
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform transition-transform duration-300 translate-x-full';
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Show the notification
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // Hide and remove the notification after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+</script>
 {% endblock %} 

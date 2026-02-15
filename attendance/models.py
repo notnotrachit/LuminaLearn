@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+import secrets
+import string
 
 class User(AbstractUser):
     is_admin = models.BooleanField(default=False)
@@ -14,9 +16,32 @@ class Course(models.Model):
     code = models.CharField(max_length=20, unique=True)
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='teaching_courses')
     created_at = models.DateTimeField(auto_now_add=True)
+    enrollment_code = models.CharField(max_length=12, unique=True, blank=True, null=True)
+    enrollment_expires_at = models.DateTimeField(blank=True, null=True)
     
     def __str__(self):
         return f"{self.code} - {self.name}"
+    
+    def save(self, *args, **kwargs):
+        if not self.enrollment_code:
+            self.enrollment_code = self.generate_enrollment_code()
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def generate_enrollment_code(cls):
+        """Generate a secure random alphanumeric enrollment code."""
+        while True:
+            # Generate 8-character alphanumeric code (uppercase letters and digits)
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            if not cls.objects.filter(enrollment_code=code).exists():
+                return code
+    
+    @property
+    def is_enrollment_active(self):
+        """Check if enrollment is currently active (not expired)."""
+        if self.enrollment_expires_at is None:
+            return True
+        return timezone.now() < self.enrollment_expires_at
 
 class Enrollment(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollments')
