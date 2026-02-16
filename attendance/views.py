@@ -753,7 +753,6 @@ def enroll_with_code(request):
         return redirect('dashboard')
     
     # Redirect to enrollment form with pre-filled code
-    from django.urls import reverse
     return redirect(f"{reverse('student_enroll')}?code={enrollment_code}")
 class RateLimitedPasswordResetView(PasswordResetView):
     """
