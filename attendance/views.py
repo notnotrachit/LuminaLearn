@@ -634,12 +634,10 @@ def student_enroll_form(request):
     enrollment_code = request.GET.get('code', '')
     
     if request.method == 'POST':
-        from .forms import CourseEnrollmentForm
         form = CourseEnrollmentForm(request.POST)
         if form.is_valid():
             return process_student_enrollment(request, form.cleaned_data)
     else:
-        from .forms import CourseEnrollmentForm
         form = CourseEnrollmentForm(initial={'enrollment_code': enrollment_code})
     
     return render(request, 'attendance/student_enroll.html', {
