@@ -2,9 +2,12 @@ import qrcode
 import base64
 import io
 import json
+import logging
 from django.conf import settings
 from django.utils import timezone
 import hashlib
+
+logger = logging.getLogger(__name__)
 
 def generate_qr_code(lecture_id, nonce, expiry_timestamp=None):
     """
@@ -60,7 +63,9 @@ def verify_qr_data(json_data, max_age_seconds=300):
         dict: Parsed data if valid, None otherwise
     """
     try:
-        print(f"Received QR data: {json_data}")
+        # Mask sensitive QR data for logging (show only first 20 chars)
+        masked_data = json_data[:20] + "..." if len(json_data) > 20 else json_data
+        logger.debug(f"Received QR data: {masked_data}")
         data = json.loads(json_data)
         
         # Check if new compact format or old format
@@ -80,7 +85,7 @@ def verify_qr_data(json_data, max_age_seconds=300):
             # Using original format
             result = data
         else:
-            print("Missing required fields in QR data")
+            logger.error("Missing required fields in QR data")
             return None
         
         # Check expiry if provided
@@ -88,13 +93,13 @@ def verify_qr_data(json_data, max_age_seconds=300):
             try:
                 expiry = timezone.datetime.fromisoformat(result['expiry'])
                 if timezone.now() > expiry:
-                    print("QR code has expired")
+                    logger.info("QR code has expired")
                     return None
             except ValueError as e:
-                print(f"Invalid expiry format: {e}")
+                logger.error(f"Invalid expiry format: {e}")
                 return None
         
         return result
     except Exception as e:
-        print(f"Error parsing QR data: {e}")
+        logger.exception(f"Error parsing QR data: {e}")
         return None 

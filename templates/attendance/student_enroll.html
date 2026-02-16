@@ -1,0 +1,108 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Enroll in Course{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>
+                        Enroll in Course
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <p class="text-muted mb-4">
+                        Enter the enrollment code provided by your teacher to join a course.
+                    </p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.enrollment_code.id_for_label }}" class="form-label">
+                                <i class="fas fa-key me-2"></i>Enrollment Code
+                            </label>
+                            {{ form.enrollment_code }}
+                            {% if form.enrollment_code.help_text %}
+                                <div class="form-text">{{ form.enrollment_code.help_text }}</div>
+                            {% endif %}
+                            {% if form.enrollment_code.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.enrollment_code.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.roll_number.id_for_label }}" class="form-label">
+                                <i class="fas fa-id-card me-2"></i>Roll Number
+                            </label>
+                            {{ form.roll_number }}
+                            {% if form.roll_number.help_text %}
+                                <div class="form-text">{{ form.roll_number.help_text }}</div>
+                            {% endif %}
+                            {% if form.roll_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.roll_number.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Enroll in Course
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4 pt-3 border-top">
+                        <p class="text-muted mb-2">
+                            <strong>How to get an enrollment code:</strong>
+                        </p>
+                        <ul class="text-muted small">
+                            <li>Ask your teacher for the course enrollment code</li>
+                            <li>Check your course materials or announcements</li>
+                            <li>Use the link shared by your teacher</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-format enrollment code to uppercase
+document.addEventListener('DOMContentLoaded', function() {
+    const enrollmentCodeInput = document.querySelector('#{{ form.enrollment_code.id_for_label }}');
+    if (enrollmentCodeInput) {
+        enrollmentCodeInput.addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+    }
+});
+</script>
+{% endblock %}

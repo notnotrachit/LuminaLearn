@@ -22,9 +22,40 @@ class LectureInline(admin.TabularInline):
     extra = 1
 
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'teacher', 'created_at')
-    search_fields = ('code', 'name', 'teacher__username')
+    list_display = ('code', 'name', 'teacher', 'enrollment_code', 'enrollment_expires_at', 'created_at')
+    search_fields = ('code', 'name', 'teacher__username', 'enrollment_code')
+    list_filter = ('created_at', 'teacher')
+    readonly_fields = ('enrollment_code', 'created_at')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'teacher')
+        }),
+        ('Enrollment', {
+            'fields': ('enrollment_code', 'enrollment_expires_at'),
+            'description': 'The enrollment code is automatically generated and allows students to self-enroll in this course.'
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        })
+    )
     inlines = [EnrollmentInline, LectureInline]
+    
+    actions = ['regenerate_enrollment_codes']
+    
+    def regenerate_enrollment_codes(self, request, queryset):
+        """Admin action to regenerate enrollment codes for selected courses."""
+        for course in queryset:
+            course.enrollment_code = Course.generate_enrollment_code()
+            course.save()
+        
+        count = queryset.count()
+        self.message_user(
+            request,
+            f'Successfully regenerated enrollment codes for {count} course(s).'
+        )
+    
+    regenerate_enrollment_codes.short_description = "Regenerate enrollment codes"
 
 class LectureAdmin(admin.ModelAdmin):
     list_display = ('title', 'course', 'date', 'start_time', 'end_time', 'blockchain_lecture_id')

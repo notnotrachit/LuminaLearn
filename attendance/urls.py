@@ -31,4 +31,8 @@ urlpatterns = [
     
     # Add blockchain statistics URL
     path('blockchain/statistics/', views.blockchain_statistics, name='blockchain_statistics'),
+    
+    # Student enrollment URLs
+    path('courses/enroll/', views.enroll_with_code, name='enroll_with_code'),
+    path('enroll/', views.student_enroll_form, name='student_enroll'),
 ] 

@@ -8,6 +8,9 @@ import base64
 import hashlib
 import secrets
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Configuration from Django settings
 def get_horizon_url():
@@ -207,8 +210,9 @@ class StellarHelper:
             
             # Submit the transaction
             response = server.submit_transaction(transaction)
-            print("Transaction response:")
-            print(response)
+            # Log transaction hash only, not the full response for security
+            tx_hash = getattr(response, 'hash', 'unknown')
+            logger.debug(f"Transaction submitted successfully, hash: {tx_hash}")
             
             return {"status": "success", "message": f"Lecture {lecture_id} created successfully"}
         except Exception as e:
@@ -406,7 +410,7 @@ class StellarHelper:
             # For now, we'll return a simulated success
             return True
         except Exception as e:
-            print(f"Error verifying attendance: {e}")
+            logger.exception(f"Error verifying attendance: {e}")
             return False
     
     @classmethod

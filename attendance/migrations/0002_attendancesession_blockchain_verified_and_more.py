@@ -18,6 +18,12 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='attendancesession',
+            name='end_time',
+            field=models.DateTimeField(),
+            preserve_default=False,
+        ),
+        migrations.AlterField(
+            model_name='attendancesession',
             name='lecture',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sessions', to='attendance.lecture'),
         ),
