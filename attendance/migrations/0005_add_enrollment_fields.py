@@ -1,4 +1,5 @@
-# Generated manually for enrollment code functionality
+# This migration was intentionally written by hand to add enrollment-related fields.
+# It is a simple schema-only change (no data migration) and is safe for Django to apply.
 
 from django.db import migrations, models
 
