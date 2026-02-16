@@ -714,6 +714,7 @@ def student_enroll_form(request):
     })
 
 
+@login_required
 def process_student_enrollment(request, form_data):
     """Process the student enrollment with validation."""
     enrollment_code = form_data['enrollment_code']
