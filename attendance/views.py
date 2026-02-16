@@ -664,9 +664,6 @@ def blockchain_statistics(request):
     })
 
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
 # Student Enrollment Views
 @login_required
 def student_enroll_form(request):
