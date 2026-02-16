@@ -646,21 +646,6 @@ def student_enroll_form(request):
         'form': form,
         'enrollment_code': enrollment_code
     })
-    
-    # Get enrollment code from URL parameter if provided
-    enrollment_code = request.GET.get('code', '')
-    
-    if request.method == 'POST':
-        form = CourseEnrollmentForm(request.POST)
-        if form.is_valid():
-            return process_student_enrollment(request, form.cleaned_data)
-    else:
-        form = CourseEnrollmentForm(initial={'enrollment_code': enrollment_code})
-    
-    return render(request, 'attendance/student_enroll.html', {
-        'form': form,
-        'enrollment_code': enrollment_code
-    })
 
 
 @login_required
