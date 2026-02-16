@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('attendance', '0004_merge_20250429_1926'),
+        ('attendance', '0002_attendancesession_blockchain_verified_and_more'),
     ]
 
     operations = [

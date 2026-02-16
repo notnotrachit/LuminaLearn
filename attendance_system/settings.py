@@ -242,6 +242,11 @@ LOGGING = {
         'handlers': ['console'],
     },
     'loggers': {
+        'attendance': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         'attendance.views': {
             'handlers': ['console', 'file'] if not DEBUG else ['console'],
             'level': 'INFO',

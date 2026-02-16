@@ -13,6 +13,8 @@ from django.core.cache import cache
 from datetime import datetime
 import logging
 
+logger = logging.getLogger(__name__)
+
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
 from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
                     CourseForm, LectureForm, EnrollmentForm, 
@@ -462,7 +464,7 @@ def process_attendance(request):
             else:
                 response_message = 'Attendance marked successfully, but blockchain recording failed.'
                 if 'error' in blockchain_response:
-                    print(f"Blockchain error: {blockchain_response['error']}")
+                    logger.error(f"Blockchain error: {blockchain_response['error']}")
             
             return JsonResponse({
                 'success': True, 
