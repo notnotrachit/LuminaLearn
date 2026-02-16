@@ -203,12 +203,6 @@ class CourseEnrollmentTestCase(TestCase):
             courses.append(course)
             codes.add(course.enrollment_code)
         
-        # Debug: Print codes if test fails
-        if len(codes) != 11:
-            print(f"Expected 11 unique codes, got {len(codes)}")
-            print("All codes:", [c.enrollment_code for c in courses])
-            print("Unique codes:", codes)
-        
         # Should have 11 unique codes (including the setup course)
         # If any code was duplicated, the set would have fewer than 11 items
         self.assertEqual(len(codes), 11)
