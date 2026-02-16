@@ -21,57 +21,7 @@ from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm,
                     AttendanceSessionForm, QRAttendanceForm, ManualAttendanceForm,
                     CourseEnrollmentForm)
 
-# Try to import stellar helper, but don't fail if it's not available
-try:
-    from .stellar_helper import StellarHelper
-except ImportError:
-    # Mock StellarHelper for testing when stellar_sdk is not available
-    class MockStellarHelper:
-        @staticmethod
-        def create_keypair():
-            return {'public_key': 'TEST_PUBLIC_KEY', 'secret_seed': 'TEST_SECRET_SEED'}
-        
-        @staticmethod
-        def fund_account(public_key):
-            return True
-        
-        @staticmethod
-        def register_teacher(seed):
-            return True
-        
-        @staticmethod
-        def register_student(seed):
-            return True
-        
-        @staticmethod
-        def create_lecture(*args, **kwargs):
-            return {'success': True, 'lecture_id': 'TEST_LECTURE_ID'}
-        
-        @staticmethod
-        def generate_nonce():
-            return 'TEST_NONCE'
-        
-        @staticmethod
-        def start_attendance(*args, **kwargs):
-            return {'success': True}
-        
-        @staticmethod
-        def mark_attendance(*args, **kwargs):
-            return {'success': True, 'transaction_hash': 'TEST_HASH'}
-        
-        @staticmethod
-        def close_attendance_session(*args, **kwargs):
-            return {'success': True}
-        
-        @staticmethod
-        def manual_attendance(*args, **kwargs):
-            return {'success': True}
-        
-        @staticmethod
-        def verify_contract_connection():
-            return {'connected': True, 'network': 'testnet'}
-    
-    StellarHelper = MockStellarHelper
+from .stellar_helper import StellarHelper
 
 from .qr_utils import generate_qr_code, verify_qr_data
 
