@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, IntegrityError
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 import secrets
@@ -24,8 +24,20 @@ class Course(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.enrollment_code:
-            self.enrollment_code = self.generate_enrollment_code()
-        super().save(*args, **kwargs)
+            # Retry logic to handle potential race conditions
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    self.enrollment_code = self.generate_enrollment_code()
+                    super().save(*args, **kwargs)
+                    break
+                except IntegrityError:
+                    if attempt == max_retries - 1:
+                        raise
+                    # Regenerate code and try again
+                    self.enrollment_code = None
+        else:
+            super().save(*args, **kwargs)
     
     @classmethod
     def generate_enrollment_code(cls):

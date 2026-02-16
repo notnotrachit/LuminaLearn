@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
+from django.db import models
 from .models import Course, Enrollment
 from .forms import CourseEnrollmentForm
 
@@ -260,3 +261,43 @@ class CourseEnrollmentTestCase(TestCase):
         self.course.enrollment_expires_at = timezone.now() - timedelta(hours=1)
         self.course.save()
         self.assertFalse(self.course.is_enrollment_active)
+    
+    def test_rate_limiting_enrollment_attempts(self):
+        """Test that rate limiting prevents brute force enrollment attempts.""" 
+        self.client.login(username='teststudent', password='testpass123')
+        
+        # Make multiple failed enrollment attempts
+        for i in range(12):  # Exceed the limit of 10
+            enrollment_data = {
+                'enrollment_code': f'INVALID{i:02d}',
+                'roll_number': f'STU{i:03d}'
+            }
+            response = self.client.post(reverse('student_enroll'), enrollment_data)
+            if i < 10:
+                self.assertEqual(response.status_code, 302)  # Should redirect
+            else:
+                # After 10 attempts, should get rate limited
+                response = self.client.get(reverse('student_enroll'))
+                # Should redirect to dashboard due to rate limiting
+                self.assertIn(response.status_code, [302])
+    
+    def test_race_condition_protection(self):
+        """Test that the save method handles race conditions properly."""
+        from unittest.mock import patch
+        from django.db import IntegrityError
+        
+        # Mock IntegrityError on first save attempt
+        with patch.object(models.Model, 'save') as mock_save:
+            mock_save.side_effect = [IntegrityError("UNIQUE constraint failed"), None]
+            
+            course = Course(
+                name='Race Condition Test',
+                code='RACE01',
+                teacher=self.teacher
+            )
+            
+            # This should handle the IntegrityError and retry
+            course.save()
+            
+            # Verify that save was called twice (first failed, second succeeded)
+            self.assertEqual(mock_save.call_count, 2)

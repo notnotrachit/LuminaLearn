@@ -4,11 +4,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.cache import cache
 from datetime import datetime
+import logging
 
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
 from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
@@ -659,6 +661,9 @@ def blockchain_statistics(request):
     })
 
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Student Enrollment Views
 @login_required
 def student_enroll_form(request):
@@ -666,6 +671,32 @@ def student_enroll_form(request):
     if not request.user.is_student:
         messages.error(request, "Only students can enroll in courses.")
         return redirect('dashboard')
+    
+    # Rate limiting check for enrollment attempts
+    user_ip = request.META.get('REMOTE_ADDR')
+    rate_limit_key = f'enrollment_attempts_{user_ip}_{request.user.id}'
+    attempts = cache.get(rate_limit_key, 0)
+    
+    if attempts >= 10:  # Max 10 attempts per hour
+        messages.error(request, "Too many enrollment attempts. Please try again later.")
+        return redirect('dashboard')
+    
+    # Get enrollment code from URL parameter if provided
+    enrollment_code = request.GET.get('code', '')
+    
+    if request.method == 'POST':
+        from .forms import CourseEnrollmentForm
+        form = CourseEnrollmentForm(request.POST)
+        if form.is_valid():
+            return process_student_enrollment(request, form.cleaned_data)
+    else:
+        from .forms import CourseEnrollmentForm
+        form = CourseEnrollmentForm(initial={'enrollment_code': enrollment_code})
+    
+    return render(request, 'attendance/student_enroll.html', {
+        'form': form,
+        'enrollment_code': enrollment_code
+    })
     
     # Get enrollment code from URL parameter if provided
     enrollment_code = request.GET.get('code', '')
@@ -690,10 +721,16 @@ def process_student_enrollment(request, form_data):
     enrollment_code = form_data['enrollment_code']
     roll_number = form_data['roll_number']
     
+    # Increment rate limiting counter
+    user_ip = request.META.get('REMOTE_ADDR')
+    rate_limit_key = f'enrollment_attempts_{user_ip}_{request.user.id}'
+    cache.set(rate_limit_key, cache.get(rate_limit_key, 0) + 1, 3600)  # 1 hour timeout
+    
     try:
         # Find course by enrollment code
         course = Course.objects.get(enrollment_code=enrollment_code)
     except Course.DoesNotExist:
+        logger.warning(f"Invalid enrollment code attempted: {enrollment_code} by user {request.user.id} from IP {user_ip}")
         messages.error(request, "Invalid enrollment code. Please check the code and try again.")
         return redirect('student_enroll')
     
@@ -714,20 +751,34 @@ def process_student_enrollment(request, form_data):
     
     # Check if roll number is already taken in this course
     if Enrollment.objects.filter(course=course, roll_number=roll_number).exists():
+        logger.info(f"Duplicate roll number attempt: {roll_number} in course {course.id} by user {request.user.id}")
         messages.error(request, "This roll number is already taken in this course. Please use a different roll number.")
         return redirect('student_enroll')
     
-    # Create enrollment
+    # Create enrollment with specific exception handling
     try:
-        enrollment = Enrollment.objects.create(
-            student=request.user,
-            course=course,
-            roll_number=roll_number
-        )
+        with transaction.atomic():
+            enrollment = Enrollment.objects.create(
+                student=request.user,
+                course=course,
+                roll_number=roll_number
+            )
+        logger.info(f"Successful enrollment: User {request.user.id} enrolled in course {course.id} with roll number {roll_number}")
         messages.success(request, f"Successfully enrolled in {course.name}!")
+        
+        # Clear rate limiting on successful enrollment
+        cache.delete(rate_limit_key)
         return redirect('course_detail', pk=course.pk)
+    except IntegrityError as e:
+        logger.error(f"IntegrityError during enrollment: User {request.user.id}, Course {course.id}, Roll {roll_number} - {str(e)}")
+        if 'unique_together' in str(e).lower() or 'roll_number' in str(e).lower():
+            messages.error(request, "This roll number is already taken in this course. Please use a different roll number.")
+        else:
+            messages.error(request, "You are already enrolled in this course.")
+        return redirect('student_enroll')
     except Exception as e:
-        messages.error(request, "An error occurred during enrollment. Please try again.")
+        logger.error(f"Unexpected error during enrollment: User {request.user.id}, Course {course.id} - {type(e).__name__}: {str(e)}")
+        messages.error(request, "An unexpected error occurred during enrollment. Please try again later.")
         return redirect('student_enroll')
 
 
