@@ -399,7 +399,11 @@ function showCopyNotification(message) {
     setTimeout(() => {
         notification.classList.add('translate-x-full');
         setTimeout(() => {
-            document.body.removeChild(notification);
+            if (notification?.remove) {
+                notification.remove();
+            } else if (notification && notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
         }, 300);
     }, 3000);
 }
