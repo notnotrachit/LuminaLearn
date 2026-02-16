@@ -672,9 +672,8 @@ def student_enroll_form(request):
         messages.error(request, "Only students can enroll in courses.")
         return redirect('dashboard')
     
-    # Rate limiting check for enrollment attempts
-    user_ip = request.META.get('REMOTE_ADDR')
-    rate_limit_key = f'enrollment_attempts_{user_ip}_{request.user.id}'
+    # Rate limiting check for enrollment attempts (per authenticated user)
+    rate_limit_key = f'enrollment_attempts_user_{request.user.id}'
     attempts = cache.get(rate_limit_key, 0)
     
     if attempts >= 10:  # Max 10 attempts per hour
