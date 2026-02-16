@@ -71,7 +71,7 @@
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
                             <div class="flex items-center">
                                 <input type="text" id="enrollmentLink" readonly 
-                                       value="{{ request.build_absolute_uri }}{% url 'enroll_with_code' %}?code={{ course.enrollment_code }}"
+                                       value="{{ request.scheme }}://{{ request.get_host }}{% url 'enroll_with_code' %}?code={{ course.enrollment_code }}"
                                        class="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none">
                                 <button onclick="copyEnrollmentLink()" class="ml-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors" title="Copy link">
                                     <i class="fas fa-link"></i>
@@ -363,23 +363,68 @@
 // JavaScript functions for copying enrollment information
 function copyEnrollmentCode() {
     const code = "{{ course.enrollment_code }}";
-    navigator.clipboard.writeText(code).then(function() {
-        showCopyNotification('Enrollment code copied to clipboard!');
-    }).catch(function(err) {
-        console.error('Could not copy text: ', err);
-    });
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(code).then(function() {
+            showCopyNotification('Enrollment code copied to clipboard!');
+        }).catch(function(err) {
+            console.error('Could not copy text using Clipboard API: ', err);
+            alert('Unable to copy enrollment code automatically. Please copy it manually.');
+        });
+    } else {
+        try {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = code;
+            tempInput.setAttribute('readonly', '');
+            tempInput.style.position = 'absolute';
+            tempInput.style.left = '-9999px';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            tempInput.setSelectionRange(0, 99999);
+            const successful = document.execCommand && document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            if (successful) {
+                showCopyNotification('Enrollment code copied to clipboard!');
+            } else {
+                console.error('Clipboard API and execCommand copy are not available.');
+                alert('Unable to copy enrollment code automatically. Please copy it manually.');
+            }
+        } catch (err) {
+            console.error('Could not copy text: ', err);
+            alert('Unable to copy enrollment code automatically. Please copy it manually.');
+        }
+    }
 }
 
 function copyEnrollmentLink() {
     const linkInput = document.getElementById('enrollmentLink');
+    if (!linkInput) {
+        console.error('Enrollment link input element not found.');
+        return;
+    }
     linkInput.select();
     linkInput.setSelectionRange(0, 99999);
     
-    navigator.clipboard.writeText(linkInput.value).then(function() {
-        showCopyNotification('Enrollment link copied to clipboard!');
-    }).catch(function(err) {
-        console.error('Could not copy text: ', err);
-    });
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(linkInput.value).then(function() {
+            showCopyNotification('Enrollment link copied to clipboard!');
+        }).catch(function(err) {
+            console.error('Could not copy text using Clipboard API: ', err);
+            alert('Unable to copy enrollment link automatically. Please copy it manually.');
+        });
+    } else {
+        try {
+            const successful = document.execCommand && document.execCommand('copy');
+            if (successful) {
+                showCopyNotification('Enrollment link copied to clipboard!');
+            } else {
+                console.error('Clipboard API and execCommand copy are not available.');
+                alert('Unable to copy enrollment link automatically. Please copy it manually.');
+            }
+        } catch (err) {
+            console.error('Could not copy text: ', err);
+            alert('Unable to copy enrollment link automatically. Please copy it manually.');
+        }
+    }
 }
 
 function showCopyNotification(message) {
@@ -399,7 +444,11 @@ function showCopyNotification(message) {
     setTimeout(() => {
         notification.classList.add('translate-x-full');
         setTimeout(() => {
-            document.body.removeChild(notification);
+            if (notification?.remove) {
+                notification.remove();
+            } else if (notification && notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
         }, 300);
     }, 3000);
 }
