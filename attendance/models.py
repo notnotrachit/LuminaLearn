@@ -42,11 +42,11 @@ class Course(models.Model):
     @classmethod
     def generate_enrollment_code(cls):
         """Generate a secure random alphanumeric enrollment code."""
-        while True:
-            # Generate 8-character alphanumeric code (uppercase letters and digits)
-            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-            if not cls.objects.filter(enrollment_code=code).exists():
-                return code
+        # Generate 8-character alphanumeric code (uppercase letters and digits)
+        # Uniqueness is enforced by the database constraint and save() retry logic.
+        return ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+    
+    
     
     @property
     def is_enrollment_active(self):
