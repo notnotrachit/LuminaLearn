@@ -363,23 +363,68 @@
 // JavaScript functions for copying enrollment information
 function copyEnrollmentCode() {
     const code = "{{ course.enrollment_code }}";
-    navigator.clipboard.writeText(code).then(function() {
-        showCopyNotification('Enrollment code copied to clipboard!');
-    }).catch(function(err) {
-        console.error('Could not copy text: ', err);
-    });
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(code).then(function() {
+            showCopyNotification('Enrollment code copied to clipboard!');
+        }).catch(function(err) {
+            console.error('Could not copy text using Clipboard API: ', err);
+            alert('Unable to copy enrollment code automatically. Please copy it manually.');
+        });
+    } else {
+        try {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = code;
+            tempInput.setAttribute('readonly', '');
+            tempInput.style.position = 'absolute';
+            tempInput.style.left = '-9999px';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            tempInput.setSelectionRange(0, 99999);
+            const successful = document.execCommand && document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            if (successful) {
+                showCopyNotification('Enrollment code copied to clipboard!');
+            } else {
+                console.error('Clipboard API and execCommand copy are not available.');
+                alert('Unable to copy enrollment code automatically. Please copy it manually.');
+            }
+        } catch (err) {
+            console.error('Could not copy text: ', err);
+            alert('Unable to copy enrollment code automatically. Please copy it manually.');
+        }
+    }
 }
 
 function copyEnrollmentLink() {
     const linkInput = document.getElementById('enrollmentLink');
+    if (!linkInput) {
+        console.error('Enrollment link input element not found.');
+        return;
+    }
     linkInput.select();
     linkInput.setSelectionRange(0, 99999);
     
-    navigator.clipboard.writeText(linkInput.value).then(function() {
-        showCopyNotification('Enrollment link copied to clipboard!');
-    }).catch(function(err) {
-        console.error('Could not copy text: ', err);
-    });
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(linkInput.value).then(function() {
+            showCopyNotification('Enrollment link copied to clipboard!');
+        }).catch(function(err) {
+            console.error('Could not copy text using Clipboard API: ', err);
+            alert('Unable to copy enrollment link automatically. Please copy it manually.');
+        });
+    } else {
+        try {
+            const successful = document.execCommand && document.execCommand('copy');
+            if (successful) {
+                showCopyNotification('Enrollment link copied to clipboard!');
+            } else {
+                console.error('Clipboard API and execCommand copy are not available.');
+                alert('Unable to copy enrollment link automatically. Please copy it manually.');
+            }
+        } catch (err) {
+            console.error('Could not copy text: ', err);
+            alert('Unable to copy enrollment link automatically. Please copy it manually.');
+        }
+    }
 }
 
 function showCopyNotification(message) {
