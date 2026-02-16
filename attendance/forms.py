@@ -83,4 +83,27 @@ class ManualAttendanceForm(forms.Form):
         self.fields['students'].queryset = User.objects.filter(
             enrollments__course=course,
             is_student=True
-        ) 
+        )
+
+class CourseEnrollmentForm(forms.Form):
+    enrollment_code = forms.CharField(
+        max_length=12,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter course enrollment code',
+            'class': 'form-control',
+            'style': 'text-transform: uppercase;'
+        }),
+        help_text='Enter the 8-character code provided by your teacher'
+    )
+    roll_number = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter your roll number',
+            'class': 'form-control'
+        }),
+        help_text='Enter your student roll number'
+    )
+    
+    def clean_enrollment_code(self):
+        code = self.cleaned_data['enrollment_code'].upper().strip()
+        return code 

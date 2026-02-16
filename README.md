@@ -38,7 +38,10 @@ The platform supports three user roles (Admin, Teacher, and Student) with role-s
 ### Course Management
 - **Course creation and scheduling**: Easy setup for teachers
 - **Student enrollment**: Simple enrollment process with unique roll numbers
+- **Student self-enrollment**: Secure enrollment using unique course codes
 - **Course dashboard**: Overview of enrolled students, lectures, and attendance stats
+- **Enrollment codes**: Auto-generated secure codes for student self-enrollment
+- **Shareable enrollment links**: Direct links for easy course joining
 
 ### Attendance System
 - **QR code-based attendance**: Secure, location-based attendance marking
