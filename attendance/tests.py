@@ -1,12 +1,10 @@
 """
 LuminaLearn Comprehensive Test Suite
-=====================================
 Covers:
   1. Unit Tests    - Models, Forms, QR utils, StellarHelper (mocked)
   2. Integration   - Registration flow, course creation, attendance marking, blockchain (mocked)
   3. API Tests     - All endpoints, auth requirements, error handling
   4. Frontend Tests- Form submissions, QR scanner flow, JS-facing JSON endpoints
-
 Run:
     python manage.py test attendance.tests
     coverage run --source='attendance' manage.py test attendance.tests && coverage report --fail-under=80
