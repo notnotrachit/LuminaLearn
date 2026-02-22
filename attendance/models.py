@@ -1,13 +1,37 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+from .encryption import encrypt_seed, decrypt_seed
+
 
 class User(AbstractUser):
     is_admin = models.BooleanField(default=False)
     is_teacher = models.BooleanField(default=False)
     is_student = models.BooleanField(default=False)
     stellar_public_key = models.CharField(max_length=56, blank=True, null=True)
-    stellar_seed = models.CharField(max_length=56, blank=True, null=True)  # This should be encrypted in production
+    # Stores Fernet-encrypted seed. Max length increased to accommodate encryption overhead.
+    # Raw Stellar seeds are 56 chars; encrypted + 'enc:' prefix is ~120 chars.
+    _stellar_seed = models.CharField(
+        db_column='stellar_seed',
+        max_length=200,
+        blank=True,
+        null=True
+    )
+
+    @property
+    def stellar_seed(self) -> str | None:
+        """Decrypt and return the stellar seed."""
+        return decrypt_seed(self._stellar_seed)
+
+    @stellar_seed.setter
+    def stellar_seed(self, value: str | None):
+        """Encrypt the stellar seed before storing."""
+        self._stellar_seed = encrypt_seed(value) if value else value
+
+    class Meta:
+        # Ensures Django doesn't complain about the renamed field
+        pass
+
 
 class Course(models.Model):
     name = models.CharField(max_length=200)
