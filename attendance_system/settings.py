@@ -30,6 +30,7 @@ env = environ.Env(
     STELLAR_CONTRACT_ID=(str, ''),
     STELLAR_ADMIN_SECRET=(str, ''),
     STATIC_URL=(str, '/static/'),
+    STELLAR_SEED_ENCRYPTION_KEY=(str, ''),  # ← ADDED
 )
 
 # Read .env file if it exists (avoid hard coupling)
@@ -161,11 +162,6 @@ LOGOUT_REDIRECT_URL = 'home'
 # Crispy Forms
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
-# Stellar blockchain settings
-STELLAR_TESTNET = True
-STELLAR_HORIZON_URL = "https://horizon-testnet.stellar.org" if STELLAR_TESTNET else "https://horizon.stellar.org"
-STELLAR_RPC_URL = "https://soroban-testnet.stellar.org" if STELLAR_TESTNET else "https://soroban.stellar.org"
-
 # Email Configuration
 # Use environment variables for production, development backend for testing
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
@@ -198,9 +194,12 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+
+# Stellar blockchain settings
 STELLAR_NETWORK = env('STELLAR_NETWORK')
 STELLAR_TESTNET = STELLAR_NETWORK == 'testnet'
 STELLAR_HORIZON_URL = env('STELLAR_HORIZON_URL')
 STELLAR_RPC_URL = env('STELLAR_RPC_URL')
 STELLAR_CONTRACT_ID = env('STELLAR_CONTRACT_ID')
 STELLAR_ADMIN_SECRET = env('STELLAR_ADMIN_SECRET')
+STELLAR_SEED_ENCRYPTION_KEY = env('STELLAR_SEED_ENCRYPTION_KEY')  # ← ADDED
