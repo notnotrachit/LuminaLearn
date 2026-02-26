@@ -4,14 +4,27 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordResetView
 from django.contrib import messages
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db import transaction
+from django.db.models import Count, Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache
-from datetime import datetime
+from datetime import datetime, date
+import json
 import logging
+import csv
+import io
+
+# PDF generation
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch, cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
+from reportlab.platypus import KeepTogether
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
 from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
@@ -675,3 +688,440 @@ class RateLimitedPasswordResetView(PasswordResetView):
         )
         
         return super().form_valid(form)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATTENDANCE REPORTS & EXPORT  (Closes #15)
+# ─────────────────────────────────────────────────────────────────────────────
+
+STELLAR_EXPLORER_BASE = "https://stellar.expert/explorer/testnet/tx"
+
+
+def _build_attendance_queryset(request):
+    """
+    Parse common filter params (course_id, student_id, date_from, date_to)
+    from GET and return a filtered Attendance queryset plus context extras.
+    """
+    qs = Attendance.objects.select_related(
+        'student', 'lecture', 'lecture__course', 'session'
+    ).order_by('-timestamp')
+
+    courses = Course.objects.all()
+    students = User.objects.filter(is_student=True).order_by('username')
+
+    # Role-based scoping
+    if request.user.is_student:
+        qs = qs.filter(student=request.user)
+        students = User.objects.filter(pk=request.user.pk)
+    elif request.user.is_teacher:
+        qs = qs.filter(lecture__course__teacher=request.user)
+        courses = courses.filter(teacher=request.user)
+
+    # Apply GET filters
+    course_id = request.GET.get('course_id')
+    student_id = request.GET.get('student_id')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+
+    if course_id:
+        qs = qs.filter(lecture__course_id=course_id)
+    if student_id and not request.user.is_student:
+        qs = qs.filter(student_id=student_id)
+    if date_from:
+        try:
+            qs = qs.filter(lecture__date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            qs = qs.filter(lecture__date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
+    filters = {
+        'course_id': course_id or '',
+        'student_id': student_id or '',
+        'date_from': date_from or '',
+        'date_to': date_to or '',
+    }
+
+    return qs, courses, students, filters
+
+
+@login_required
+def reports_dashboard(request):
+    """
+    Main reports & analytics dashboard.
+    Shows summary stats, attendance trend chart data and a blockchain
+    verification table. Provides links to CSV and PDF exports.
+    """
+    qs, courses, students, filters = _build_attendance_queryset(request)
+
+    total_records = qs.count()
+    verified_records = qs.filter(blockchain_verified=True).count()
+    unverified_records = total_records - verified_records
+    verification_pct = int(verified_records / max(total_records, 1) * 100)
+
+    # Trend: attendance counts per day (last 30 records or filtered period)
+    trend_data = (
+        qs.values('lecture__date')
+          .annotate(count=Count('id'))
+          .order_by('lecture__date')
+    )
+    chart_labels = json.dumps([str(r['lecture__date']) for r in trend_data])
+    chart_values = json.dumps([r['count'] for r in trend_data])
+
+    # Top courses by attendance
+    top_courses = (
+        qs.values('lecture__course__name', 'lecture__course__code')
+          .annotate(count=Count('id'))
+          .order_by('-count')[:5]
+    )
+
+    # Recent blockchain-verified records (for table preview)
+    recent_verified = qs.filter(blockchain_verified=True)[:20]
+    recent_all = qs[:20]
+
+    # Add explorer URLs
+    for att in recent_verified:
+        att.explorer_url = (
+            f"{STELLAR_EXPLORER_BASE}/{att.transaction_hash}"
+            if att.transaction_hash else None
+        )
+    for att in recent_all:
+        att.explorer_url = (
+            f"{STELLAR_EXPLORER_BASE}/{att.transaction_hash}"
+            if att.transaction_hash else None
+        )
+
+    return render(request, 'attendance/reports_dashboard.html', {
+        'courses': courses,
+        'students': students,
+        'filters': filters,
+        'total_records': total_records,
+        'verified_records': verified_records,
+        'unverified_records': unverified_records,
+        'verification_pct': verification_pct,
+        'chart_labels': chart_labels,
+        'chart_values': chart_values,
+        'top_courses': top_courses,
+        'recent_verified': recent_verified,
+        'recent_all': recent_all,
+    })
+
+
+@login_required
+def export_csv(request):
+    """
+    Export attendance records as a UTF-8 CSV file.
+    Respects the same filters as reports_dashboard.
+    """
+    qs, _, _, filters = _build_attendance_queryset(request)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="luminalearn_attendance.csv"'
+    # BOM for Excel UTF-8 compatibility
+    response.write('\ufeff')
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Student Username', 'Student Name',
+        'Course Code', 'Course Name',
+        'Lecture Title', 'Lecture Date',
+        'Attendance Time',
+        'Blockchain Verified', 'Transaction Hash',
+        'Stellar Explorer URL',
+    ])
+
+    for att in qs.iterator():
+        tx_hash = att.transaction_hash or ''
+        explorer_url = f"{STELLAR_EXPLORER_BASE}/{tx_hash}" if tx_hash else ''
+        writer.writerow([
+            att.student.username,
+            att.student.get_full_name() or att.student.username,
+            att.lecture.course.code,
+            att.lecture.course.name,
+            att.lecture.title,
+            att.lecture.date,
+            att.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'Yes' if att.blockchain_verified else 'No',
+            tx_hash,
+            explorer_url,
+        ])
+
+    return response
+
+
+@login_required
+def export_pdf(request):
+    """
+    Generate and download a PDF attendance report using ReportLab.
+    Includes summary statistics, per-course breakdown and a
+    Stellar blockchain verification section with tx hashes.
+    """
+    qs, courses_qs, _, filters = _build_attendance_queryset(request)
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Title'],
+        fontSize=22,
+        textColor=colors.HexColor('#4f46e5'),
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#6b7280'),
+        spaceAfter=20,
+    )
+    section_style = ParagraphStyle(
+        'SectionHeader',
+        parent=styles['Heading2'],
+        fontSize=13,
+        textColor=colors.HexColor('#4338ca'),
+        spaceBefore=14,
+        spaceAfter=6,
+    )
+    small_style = ParagraphStyle(
+        'Small',
+        parent=styles['Normal'],
+        fontSize=7,
+        textColor=colors.HexColor('#374151'),
+        wordWrap='CJK',
+    )
+    cell_style = ParagraphStyle(
+        'Cell',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10,
+    )
+
+    elements = []
+
+    # ── Title block ──────────────────────────────────────────────────────────
+    elements.append(Paragraph('LuminaLearn — Attendance Report', title_style))
+    generated_at = timezone.now().strftime('%d %b %Y, %H:%M UTC')
+    subtitle_text = f'Generated: {generated_at}'
+    if filters.get('date_from') or filters.get('date_to'):
+        subtitle_text += f" | Period: {filters.get('date_from', '—')} → {filters.get('date_to', '—')}"
+    elements.append(Paragraph(subtitle_text, subtitle_style))
+    elements.append(HRFlowable(width='100%', thickness=1, color=colors.HexColor('#e5e7eb')))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    # ── Summary statistics ───────────────────────────────────────────────────
+    total = qs.count()
+    verified = qs.filter(blockchain_verified=True).count()
+    unverified = total - verified
+    pct = int(verified / max(total, 1) * 100)
+
+    stats_data = [
+        ['Total Records', 'Blockchain Verified', 'Unverified', 'Verification Rate'],
+        [str(total), str(verified), str(unverified), f'{pct}%'],
+    ]
+    stats_table = Table(stats_data, colWidths=[6 * cm] * 4)
+    stats_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWHEIGHT', (0, 0), (-1, 0), 20),
+        ('ROWHEIGHT', (0, 1), (-1, 1), 24),
+        ('FONTSIZE', (0, 1), (-1, 1), 14),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 1), (0, 1), colors.HexColor('#111827')),
+        ('TEXTCOLOR', (1, 1), (1, 1), colors.HexColor('#059669')),
+        ('TEXTCOLOR', (2, 1), (2, 1), colors.HexColor('#dc2626')),
+        ('TEXTCOLOR', (3, 1), (3, 1), colors.HexColor('#4f46e5')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+    ]))
+    elements.append(stats_table)
+    elements.append(Spacer(1, 0.4 * cm))
+
+    # ── Per-course breakdown ─────────────────────────────────────────────────
+    elements.append(Paragraph('Attendance by Course', section_style))
+    course_stats = (
+        qs.values('lecture__course__code', 'lecture__course__name')
+          .annotate(
+              total=Count('id'),
+              verified_count=Count('id', filter=Q(blockchain_verified=True)),
+          )
+          .order_by('-total')
+    )
+    if course_stats:
+        course_data = [['Course Code', 'Course Name', 'Total', 'Verified', 'Rate']]
+        for row in course_stats:
+            rate = int(row['verified_count'] / max(row['total'], 1) * 100)
+            course_data.append([
+                row['lecture__course__code'],
+                row['lecture__course__name'],
+                str(row['total']),
+                str(row['verified_count']),
+                f"{rate}%",
+            ])
+        col_widths = [3.5 * cm, 9 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm]
+        course_table = Table(course_data, colWidths=col_widths, repeatRows=1)
+        course_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#818cf8')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f3ff')]),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+            ('ROWHEIGHT', (0, 0), (-1, -1), 16),
+        ]))
+        elements.append(course_table)
+    else:
+        elements.append(Paragraph('No course data available for this filter.', styles['Normal']))
+
+    elements.append(Spacer(1, 0.4 * cm))
+
+    # ── Detailed attendance log ──────────────────────────────────────────────
+    elements.append(Paragraph('Detailed Attendance Log', section_style))
+    detail_data = [[
+        'Student', 'Course', 'Lecture', 'Date', 'Time', 'Verified', 'TX Hash (first 16)',
+    ]]
+    for att in qs[:200]:  # cap at 200 rows for PDF size
+        tx_short = (att.transaction_hash[:16] + '...') if att.transaction_hash else '-'
+        verified_mark = 'Yes' if att.blockchain_verified else 'No'
+        detail_data.append([
+            Paragraph(att.student.username, cell_style),
+            Paragraph(att.lecture.course.code, cell_style),
+            Paragraph(att.lecture.title[:30], cell_style),
+            str(att.lecture.date),
+            att.timestamp.strftime('%H:%M'),
+            verified_mark,
+            Paragraph(tx_short, small_style),
+        ])
+
+    col_widths_d = [4 * cm, 3 * cm, 5.5 * cm, 2.5 * cm, 1.8 * cm, 2 * cm, 4.2 * cm]
+    detail_table = Table(detail_data, colWidths=col_widths_d, repeatRows=1)
+    detail_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (5, 0), (5, -1), 'CENTER'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#eff6ff')]),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#dbeafe')),
+        ('ROWHEIGHT', (0, 0), (-1, -1), 14),
+        ('TEXTCOLOR', (5, 1), (5, -1), colors.HexColor('#059669')),
+    ]))
+    elements.append(detail_table)
+
+    # ── Blockchain verification section ──────────────────────────────────────
+    blockchain_qs = qs.filter(blockchain_verified=True, transaction_hash__isnull=False)
+    if blockchain_qs.exists():
+        elements.append(Spacer(1, 0.5 * cm))
+        elements.append(Paragraph('Stellar Blockchain Verification', section_style))
+        elements.append(Paragraph(
+            f'The following {blockchain_qs.count()} attendance records are verifiably recorded '
+            f'on the Stellar Testnet blockchain. Each transaction hash can be independently '
+            f'verified at: {STELLAR_EXPLORER_BASE}/{{tx_hash}}',
+            ParagraphStyle('BlockchainNote', parent=styles['Normal'], fontSize=8,
+                           textColor=colors.HexColor('#374151'), spaceAfter=8),
+        ))
+        bc_data = [['Student', 'Course', 'Lecture Date', 'Transaction Hash', 'Stellar Explorer URL']]
+        for att in blockchain_qs[:100]:
+            explorer_url = f"{STELLAR_EXPLORER_BASE}/{att.transaction_hash}"
+            bc_data.append([
+                att.student.username,
+                att.lecture.course.code,
+                str(att.lecture.date),
+                Paragraph(att.transaction_hash or '—', small_style),
+                Paragraph(explorer_url, small_style),
+            ])
+        bc_col_widths = [3.5 * cm, 2.5 * cm, 2.5 * cm, 8 * cm, 10 * cm]
+        bc_table = Table(bc_data, colWidths=bc_col_widths, repeatRows=1)
+        bc_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#059669')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecfdf5')]),
+            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#d1fae5')),
+            ('ROWHEIGHT', (0, 0), (-1, -1), 14),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        elements.append(bc_table)
+
+    # ── Footer ───────────────────────────────────────────────────────────────
+    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e5e7eb')))
+    elements.append(Paragraph(
+        f'LuminaLearn — Blockchain-Based Attendance System | '
+        f'Stellar Testnet | Report generated {generated_at}',
+        ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7,
+                       textColor=colors.HexColor('#9ca3af'), alignment=TA_CENTER),
+    ))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="luminalearn_attendance_report.pdf"'
+    return response
+
+
+@login_required
+def attendance_analytics_api(request):
+    """
+    JSON API endpoint for Chart.js attendance analytics data.
+    Returns trend data, course distribution and verification stats.
+    """
+    qs, _, _, _ = _build_attendance_queryset(request)
+
+    # Daily trend
+    trend = (
+        qs.values('lecture__date')
+          .annotate(total=Count('id'), verified=Count('id', filter=Q(blockchain_verified=True)))
+          .order_by('lecture__date')
+    )
+    trend_labels = [str(r['lecture__date']) for r in trend]
+    trend_total = [r['total'] for r in trend]
+    trend_verified = [r['verified'] for r in trend]
+
+    # Course distribution
+    course_dist = (
+        qs.values('lecture__course__name')
+          .annotate(count=Count('id'))
+          .order_by('-count')[:8]
+    )
+    course_labels = [r['lecture__course__name'] for r in course_dist]
+    course_counts = [r['count'] for r in course_dist]
+
+    # Overall verification pie
+    total = qs.count()
+    verified_count = qs.filter(blockchain_verified=True).count()
+
+    return JsonResponse({
+        'trend': {
+            'labels': trend_labels,
+            'total': trend_total,
+            'verified': trend_verified,
+        },
+        'courses': {
+            'labels': course_labels,
+            'counts': course_counts,
+        },
+        'verification': {
+            'verified': verified_count,
+            'unverified': total - verified_count,
+        },
+    })

@@ -31,4 +31,10 @@ urlpatterns = [
     
     # Add blockchain statistics URL
     path('blockchain/statistics/', views.blockchain_statistics, name='blockchain_statistics'),
+
+    # ── Attendance Reports & Export (#15) ─────────────────────────────────
+    path('reports/', views.reports_dashboard, name='reports_dashboard'),
+    path('reports/export/csv/', views.export_csv, name='export_csv'),
+    path('reports/export/pdf/', views.export_pdf, name='export_pdf'),
+    path('reports/analytics/api/', views.attendance_analytics_api, name='attendance_analytics_api'),
 ] 
