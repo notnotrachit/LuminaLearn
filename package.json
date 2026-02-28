@@ -1,0 +1,28 @@
+{
+  "name": "lumina-learn",
+  "version": "1.0.0",
+  "description": "Blockchain-based attendance system",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "testMatch": [
+      "**/static/js/**/*.test.js"
+    ],
+    "coverageDirectory": "coverage/frontend",
+    "collectCoverageFrom": [
+      "static/js/**/*.js",
+      "!static/js/**/*.test.js"
+    ]
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^9.3.4",
+    "@testing-library/jest-dom": "^6.1.5",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}

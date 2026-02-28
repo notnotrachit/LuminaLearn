@@ -2,9 +2,12 @@ import qrcode
 import base64
 import io
 import json
+import logging
 from django.conf import settings
 from django.utils import timezone
 import hashlib
+
+logger = logging.getLogger(__name__)
 
 def generate_qr_code(lecture_id, nonce, expiry_timestamp=None):
     """
@@ -51,25 +54,28 @@ def generate_qr_code(lecture_id, nonce, expiry_timestamp=None):
 def verify_qr_data(json_data, max_age_seconds=300):
     """
     Verify QR code data is valid
-    
+
     Args:
         json_data: JSON data from QR code
         max_age_seconds: Maximum age of QR code in seconds
-        
+
     Returns:
         dict: Parsed data if valid, None otherwise
     """
+    import logging as log_module
+    func_logger = log_module.getLogger(__name__)
+
     try:
-        print(f"Received QR data: {json_data}")
+        func_logger.debug("Processing QR code data")
         data = json.loads(json_data)
-        
+
         # Check if new compact format or old format
         if 'l' in data and 'n' in data:
             # Using new compact format
             lecture_id = data['l']
             nonce = data['n']
             expiry = data.get('e')
-            
+
             # Convert to original format for compatibility
             result = {
                 'lecture_id': lecture_id,
@@ -80,21 +86,35 @@ def verify_qr_data(json_data, max_age_seconds=300):
             # Using original format
             result = data
         else:
-            print("Missing required fields in QR data")
+            func_logger.warning("Missing required fields in QR data")
             return None
-        
-        # Check expiry if provided
+
+        # Check expiry if provided - handle both timezone-aware and naive datetimes
         if result.get('expiry'):
             try:
-                expiry = timezone.datetime.fromisoformat(result['expiry'])
+                from datetime import datetime, timezone as dt_timezone
+
+                expiry_str = result['expiry']
+
+                # Parse aware datetime; fallback to treating as UTC if no offset present
+                try:
+                    expiry = datetime.fromisoformat(expiry_str)
+                except ValueError:
+                    # Python < 3.11: strip trailing Z if present
+                    expiry = datetime.fromisoformat(expiry_str.replace('Z', '+00:00'))
+
+                # Make naive datetimes UTC-aware before comparison
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=dt_timezone.utc)
+
                 if timezone.now() > expiry:
-                    print("QR code has expired")
+                    func_logger.info("QR code has expired")
                     return None
-            except ValueError as e:
-                print(f"Invalid expiry format: {e}")
+            except (ValueError, TypeError) as e:
+                func_logger.warning(f"Invalid expiry format in QR data: {e}")
                 return None
-        
+
         return result
     except Exception as e:
-        print(f"Error parsing QR data: {e}")
+        func_logger.error(f"Error parsing QR data: {e}")
         return None 
