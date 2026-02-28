@@ -1,0 +1,64 @@
+# Development Docker Compose Configuration
+# Issue #30: Add docker-compose.dev.yml for development
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Database - same as production
+  db:
+    ports:
+      - "5432:5432"  # Expose for local DB clients
+    environment:
+      - POSTGRES_DB=luminallearn_dev
+      - POSTGRES_USER=lumina_dev
+      - POSTGRES_PASSWORD=dev_password_123  # OK for development
+
+  # Redis - same as production
+  redis:
+    ports:
+      - "6379:6379"  # Expose for local Redis clients
+
+  # Web application - development overrides
+  web:
+    command: python manage.py runserver 0.0.0.0:8000  # Use Django dev server for hot reload
+    volumes:
+      - .:/app  # Mount source code for hot reload
+      - /app/staticfiles  # Don't mount staticfiles (use collectstatic)
+      - /app/media  # Don't mount media
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    environment:
+      - SECRET_KEY=dev-secret-key-change-in-production-12345678901234567890
+      - DEBUG=True  # Enable debug mode
+      - ALLOWED_HOSTS=*  # Allow all hosts in development
+      - DATABASE_URL=postgresql://lumina_dev:dev_password_123@db:5432/luminallearn_dev
+      - REDIS_URL=redis://redis:6379/0
+      - STELLAR_TESTNET=True  # Use testnet in development
+      - STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+      - STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-}
+      - DJANGO_SETTINGS_MODULE=LuminaLearn.settings
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"  # Expose directly for easier debugging
+    stdin_open: true  # Enable interactive debugging
+    tty: true
+
+  # Remove nginx in development (access Django dev server directly)
+  nginx:
+    profiles:
+      - production  # Only run with --profile production
+
+  # Optional: Development tools
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    profiles:
+      - mail  # Run with --profile mail to test emails
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

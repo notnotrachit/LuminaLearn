@@ -1,0 +1,113 @@
+# Dependabot Configuration
+# Issue #29: Add CI/CD pipeline with GitHub Actions
+#
+# Automatically checks for dependency updates and creates PRs
+# Supports Python (pip), Docker, GitHub Actions, and Cargo (Rust)
+
+version: 2
+updates:
+  # ========================================
+  # Python Dependencies
+  # ========================================
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "notnotrachit"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    # Group security updates together
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+    # Ignore specific dependencies if needed
+    ignore:
+      # Example: ignore major version updates for Django
+      - dependency-name: "django"
+        update-types: ["version-update:semver-major"]
+
+  # ========================================
+  # Docker Base Images
+  # ========================================
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "notnotrachit"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+
+  # ========================================
+  # GitHub Actions
+  # ========================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "notnotrachit"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+
+  # ========================================
+  # Rust/Cargo Dependencies (Soroban Contracts)
+  # ========================================
+  - package-ecosystem: "cargo"
+    directory: "/soroban/attendance"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "notnotrachit"
+    labels:
+      - "dependencies"
+      - "rust"
+      - "soroban"
+    commit-message:
+      prefix: "cargo"
+      prefix-development: "cargo-dev"
+
+  - package-ecosystem: "cargo"
+    directory: "/soroban/course_factory"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "notnotrachit"
+    labels:
+      - "dependencies"
+      - "rust"
+      - "soroban"
+    commit-message:
+      prefix: "cargo"
+      prefix-development: "cargo-dev"

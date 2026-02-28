@@ -10,15 +10,23 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache
+from django.views.decorators.csrf import csrf_protect
 from datetime import datetime
 import logging
 
 from .models import User, Course, Lecture, Enrollment, AttendanceSession, Attendance
-from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm, 
-                    CourseForm, LectureForm, EnrollmentForm, 
+from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm,
+                    CourseForm, LectureForm, EnrollmentForm,
                     AttendanceSessionForm, QRAttendanceForm, ManualAttendanceForm)
-from .stellar_helper import StellarHelper
+from .stellar_helper import (
+    StellarHelper,
+    BlockchainTransactionError,
+    BlockchainConnectionError,
+    BlockchainInsufficientFundsError,
+    BlockchainAccountNotFoundError
+)
 from .qr_utils import generate_qr_code, verify_qr_data
+from .exceptions import AttendanceError
 
 # Authentication Views
 class AdminSignUpView(CreateView):
@@ -35,12 +43,12 @@ class AdminSignUpView(CreateView):
         # Create a blockchain wallet for the admin
         keypair = StellarHelper.create_keypair()
         user.stellar_public_key = keypair['public_key']
-        user.stellar_seed = keypair['secret_seed']
+        user.set_stellar_seed(keypair['secret_seed'])
         user.save()
         # Fund the account on testnet
         StellarHelper.fund_account(user.stellar_public_key)
         # Register user on the blockchain
-        StellarHelper.register_teacher(user.stellar_seed)
+        StellarHelper.register_teacher(user.get_stellar_seed())
         login(self.request, user)
         return redirect('dashboard')
 
@@ -57,12 +65,12 @@ def teacher_signup(request):
             # Create a blockchain wallet for the teacher
             keypair = StellarHelper.create_keypair()
             user.stellar_public_key = keypair['public_key']
-            user.stellar_seed = keypair['secret_seed']
+            user.set_stellar_seed(keypair['secret_seed'])
             user.save()
             # Fund the account on testnet
             StellarHelper.fund_account(user.stellar_public_key)
             # Register teacher on the blockchain
-            StellarHelper.register_teacher(user.stellar_seed)
+            StellarHelper.register_teacher(user.get_stellar_seed())
             messages.success(request, f"Teacher account {user.username} created successfully!")
             return redirect('teacher_list')
     else:
@@ -87,12 +95,12 @@ class StudentSignUpView(CreateView):
         # Create a blockchain wallet for the student
         keypair = StellarHelper.create_keypair()
         user.stellar_public_key = keypair['public_key']
-        user.stellar_seed = keypair['secret_seed']
+        user.set_stellar_seed(keypair['secret_seed'])
         user.save()
         # Fund the account on testnet
         StellarHelper.fund_account(user.stellar_public_key)
         # Register student on the blockchain
-        StellarHelper.register_student(user.stellar_seed)
+        StellarHelper.register_student(user.get_stellar_seed())
         login(self.request, user)
         return redirect('dashboard')
 
@@ -193,7 +201,7 @@ def course_detail(request, pk):
                 duration_minutes = int((end_dt - start_dt).total_seconds() / 60)
                 
                 blockchain_response = StellarHelper.create_lecture(
-                    request.user.stellar_seed,
+                    request.user.get_stellar_seed(),
                     lecture.id,
                     course.id,
                     lecture.title,
@@ -281,7 +289,7 @@ def lecture_detail(request, pk):
                     
                     # Start attendance on blockchain
                     blockchain_response = StellarHelper.start_attendance(
-                        request.user.stellar_seed,
+                        request.user.get_stellar_seed(),
                         lecture.id,
                         duration * 60  # Convert to seconds
                     )
@@ -345,24 +353,25 @@ def scan_attendance(request):
     return render(request, 'attendance/scan_attendance.html')
 
 @login_required
+@csrf_protect
 def process_attendance(request):
     """Process the scanned QR code data"""
     if not request.user.is_student:
         return JsonResponse({'success': False, 'error': 'Only students can mark attendance'})
-    
+
     if request.method == 'POST':
         try:
             # Get data from POST request
             qr_data = request.POST.get('qr_data')
-            
+
             # Verify QR data
             data = verify_qr_data(qr_data)
             if not data:
-                return JsonResponse({'success': False, 'error': 'Invalid QR code or expired'})
-            
+                raise AttendanceError('Invalid QR code or expired')
+
             lecture_id = data['lecture_id']
             nonce = data['nonce']
-            
+
             # Get lecture and active session
             lecture = get_object_or_404(Lecture, pk=lecture_id)
             session = AttendanceSession.objects.filter(
@@ -370,58 +379,88 @@ def process_attendance(request):
                 nonce=nonce,
                 is_active=True
             ).first()
-            
+
             if not session:
-                return JsonResponse({'success': False, 'error': 'No active attendance session for this lecture'})
-            
+                raise AttendanceError('No active attendance session for this lecture')
+
             # Check if already marked
             if Attendance.objects.filter(lecture=lecture, student=request.user).exists():
-                return JsonResponse({'success': False, 'error': 'You have already marked attendance for this lecture'})
-            
+                raise AttendanceError('You have already marked attendance for this lecture')
+
             # Check if student is enrolled in the course
             if not Enrollment.objects.filter(course=lecture.course, student=request.user).exists():
-                return JsonResponse({'success': False, 'error': 'You are not enrolled in this course'})
-            
-            # Mark attendance on blockchain
-            blockchain_response = StellarHelper.mark_attendance(
-                request.user.stellar_seed,
-                lecture.id,
-                nonce
-            )
-            
-            # Determine blockchain verification status
-            blockchain_verified = 'error' not in blockchain_response
-            
-            # Create attendance record
-            attendance = Attendance.objects.create(
-                student=request.user,
-                lecture=lecture,
-                session=session,
-                blockchain_verified=blockchain_verified
-            )
-            
-            # If there's a transaction hash from blockchain, save it
-            if blockchain_verified and 'hash' in blockchain_response:
-                attendance.transaction_hash = blockchain_response['hash']
-                attendance.save()
-                
-                response_message = 'Attendance marked successfully and recorded on blockchain!'
-            else:
-                response_message = 'Attendance marked successfully, but blockchain recording failed.'
-                if 'error' in blockchain_response:
-                    print(f"Blockchain error: {blockchain_response['error']}")
-            
-            return JsonResponse({
-                'success': True, 
-                'message': response_message,
+                raise AttendanceError('You are not enrolled in this course')
+
+            # Mark attendance on blockchain with improved error handling
+            try:
+                blockchain_response = StellarHelper.mark_attendance(
+                    request.user.get_stellar_seed(),
+                    lecture.id,
+                    nonce
+                )
+                blockchain_verified = True
+                transaction_hash = blockchain_response.get('transaction_hash')
+                explorer_url = blockchain_response.get('explorer_url')
+            except BlockchainAccountNotFoundError as e:
+                raise AttendanceError('Your blockchain account was not found. Please contact support.')
+            except BlockchainInsufficientFundsError as e:
+                raise AttendanceError('Insufficient funds in your blockchain account. Please contact support.')
+            except BlockchainConnectionError as e:
+                # Log error but allow attendance to be marked locally
+                logger = logging.getLogger(__name__)
+                logger.error(f"Blockchain connection error: {e}")
+                blockchain_verified = False
+                transaction_hash = None
+                explorer_url = None
+            except BlockchainTransactionError as e:
+                # Log error but allow attendance to be marked locally
+                logger = logging.getLogger(__name__)
+                logger.error(f"Blockchain transaction error: {e}")
+                blockchain_verified = False
+                transaction_hash = None
+                explorer_url = None
+
+            # Create attendance record (atomic with database transaction)
+            with transaction.atomic():
+                attendance = Attendance.objects.create(
+                    student=request.user,
+                    lecture=lecture,
+                    session=session,
+                    blockchain_verified=blockchain_verified,
+                    transaction_hash=transaction_hash
+                )
+
+            # Build response
+            response_data = {
+                'success': True,
                 'course': lecture.course.name,
                 'lecture': lecture.title,
                 'blockchain_verified': blockchain_verified
-            })
-            
-        except Exception as e:
+            }
+
+            if blockchain_verified:
+                response_data['message'] = 'Attendance marked successfully and recorded on blockchain!'
+                if transaction_hash:
+                    response_data['transaction_hash'] = transaction_hash
+                if explorer_url:
+                    response_data['explorer_url'] = explorer_url
+            else:
+                response_data['message'] = 'Attendance marked locally. Blockchain recording will be retried later.'
+
+            return JsonResponse(response_data)
+
+        except AttendanceError as e:
+            # Known, pre-written user-facing error — safe to send
             return JsonResponse({'success': False, 'error': str(e)})
-    
+        except Exception:
+            # Log full detail server-side; never expose to client
+            logger = logging.getLogger(__name__)
+            logger.exception("Unexpected error in process_attendance")
+            return JsonResponse({
+                'success': False,
+                'error': 'An unexpected error occurred. Please try again or contact support.'
+            })
+
     return JsonResponse({'success': False, 'error': 'Invalid request'})
 
 @login_required
@@ -442,7 +481,7 @@ def close_attendance_session(request, session_id):
     # Close session on blockchain if it was verified
     if session.blockchain_verified:
         blockchain_response = StellarHelper.close_attendance_session(
-            request.user.stellar_seed,
+            request.user.get_stellar_seed(),
             lecture.id
         )
         
@@ -494,7 +533,7 @@ def manual_attendance(request, lecture_id):
                     if not Attendance.objects.filter(lecture=lecture, student=student).exists():
                         # Record attendance on blockchain
                         blockchain_response = StellarHelper.manual_attendance(
-                            request.user.stellar_seed,
+                            request.user.get_stellar_seed(),
                             lecture.id,
                             student.stellar_public_key
                         )
