@@ -19,6 +19,10 @@ from .forms import (AdminSignUpForm, TeacherSignUpForm, StudentSignUpForm,
                     AttendanceSessionForm, QRAttendanceForm, ManualAttendanceForm)
 from .stellar_helper import StellarHelper
 from .qr_utils import generate_qr_code, verify_qr_data
+from .utils.csv_export import (export_attendance_to_csv, export_course_attendance_summary,
+                                export_lecture_attendance, export_student_attendance_report)
+from .utils.analytics import (get_course_attendance_stats, get_student_attendance_stats,
+                               get_lecture_attendance_stats, get_low_attendance_students)
 
 # Authentication Views
 class AdminSignUpView(CreateView):
@@ -675,3 +679,71 @@ class RateLimitedPasswordResetView(PasswordResetView):
         )
         
         return super().form_valid(form)
+
+# CSV Export Views
+@login_required
+def export_course_csv(request, course_id):
+    """Export course attendance summary to CSV"""
+    course = get_object_or_404(Course, pk=course_id)
+    
+    # Check permissions
+    if not (request.user.is_admin or request.user == course.teacher):
+        messages.error(request, "You don't have permission to export this course data.")
+        return redirect('course_detail', pk=course_id)
+    
+    return export_course_attendance_summary(course)
+
+@login_required
+def export_lecture_csv(request, lecture_id):
+    """Export lecture attendance to CSV"""
+    lecture = get_object_or_404(Lecture, pk=lecture_id)
+    
+    # Check permissions
+    if not (request.user.is_admin or request.user == lecture.course.teacher):
+        messages.error(request, "You don't have permission to export this lecture data.")
+        return redirect('lecture_detail', pk=lecture_id)
+    
+    return export_lecture_attendance(lecture)
+
+@login_required
+def export_student_csv(request):
+    """Export student's own attendance report to CSV"""
+    if not request.user.is_student:
+        messages.error(request, "Only students can export their attendance report.")
+        return redirect('dashboard')
+    
+    return export_student_attendance_report(request.user)
+
+# Analytics Views
+@login_required
+def course_analytics(request, course_id):
+    """Display course attendance analytics"""
+    course = get_object_or_404(Course, pk=course_id)
+    
+    # Check permissions
+    if not (request.user.is_admin or request.user == course.teacher):
+        messages.error(request, "You don't have permission to view this course analytics.")
+        return redirect('course_detail', pk=course_id)
+    
+    # Get analytics data
+    stats = get_course_attendance_stats(course)
+    low_attendance = get_low_attendance_students(course, threshold=75)
+    
+    return render(request, 'attendance/course_analytics.html', {
+        'course': course,
+        'stats': stats,
+        'low_attendance_students': low_attendance
+    })
+
+@login_required
+def student_analytics(request):
+    """Display student's own attendance analytics"""
+    if not request.user.is_student:
+        messages.error(request, "Only students can view their attendance analytics.")
+        return redirect('dashboard')
+    
+    stats = get_student_attendance_stats(request.user)
+    
+    return render(request, 'attendance/student_analytics.html', {
+        'stats': stats
+    })
