@@ -146,6 +146,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = env('STATIC_URL')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Default primary key field type
@@ -192,12 +193,17 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 PASSWORD_RESET_TIMEOUT = 86400  # 24 hours in seconds
 
 # Cache configuration for rate limiting
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+if env('CACHE_URL', default=None):
+    CACHES = {
+        'default': env.cache('CACHE_URL')
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
 STELLAR_NETWORK = env('STELLAR_NETWORK')
 STELLAR_TESTNET = STELLAR_NETWORK == 'testnet'
 STELLAR_HORIZON_URL = env('STELLAR_HORIZON_URL')
