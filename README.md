@@ -146,12 +146,29 @@ For a detailed architecture diagram, see [architecture_diagram.md](architecture_
 
 ### Using Docker (Alternative)
 
-1. Build and run using Docker Compose:
-   ```bash
-   docker-compose up --build
-   ```
+For easy deployment and consistent environments, you can use Docker and Docker Compose.
 
-2. Access the application at `http://127.0.0.1:8000/`
+#### 1. Quick Start (Development)
+The development configuration includes hot-reloading and uses a local SQLite database by default.
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+Access the application at `http://localhost:8001/`.
+
+#### 2. Production-ready Deployment
+The production configuration uses Nginx as a reverse proxy, Gunicorn as the WSGI server, PostgreSQL for the database, and Redis for caching.
+
+```bash
+docker-compose up --build
+```
+Access the application at `http://localhost/`.
+
+#### Docker Services Included:
+- **web**: Django application (Gunicorn)
+- **db**: PostgreSQL 15
+- **redis**: Redis 7
+- **nginx**: Nginx reverse proxy (serves static files)
 
 ## ⚙️ Configuration
 

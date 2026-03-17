@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/mediafiles
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=dev-insecure-key
+      - DATABASE_URL=sqlite:///./db.sqlite3
+      - CACHE_URL=redis://redis:6379/1
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    ports:
+      - "8001:8000"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    # Keeps Postgres if you want it in dev
+    environment:
+      - POSTGRES_DB=luminalearn_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5433:5432"
+
+  redis:
+    ports:
+      - "6380:6379"
+
+  # Nginx might be skipped in dev or configured differently
